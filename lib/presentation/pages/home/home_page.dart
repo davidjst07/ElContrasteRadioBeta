@@ -2,6 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:elcontrasteapp/presentation/pages/home/post_model.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_service.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
+import 'package:elcontrasteapp/presentation/pages/home/video_model.dart';
+import 'package:elcontrasteapp/presentation/pages/home/video_player_page.dart';
+import 'package:elcontrasteapp/presentation/pages/home/youtube_service.dart';
 import 'package:elcontrasteapp/presentation/widgets/radio_player_widget.dart';
 
 import 'package:flutter/material.dart';
@@ -15,7 +18,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedTabIndex = 0;
-  final List<String> _tabs = ["Radio", "Noticias", "Deportes"];
+  final List<String> _tabs = ["Radio", "Noticias", "Video"];
 
   // Definimos las categorías de noticias con sus respectivos IDs de WordPress
   final Map<String, int?> _newsCategories = {
@@ -55,8 +58,15 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           children: [
             Image.asset('assets/logoradio.png', height: 80),
-            _NowplayingWidget(isNewsSelected: _selectedTabIndex == 1),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            // Envolvemos el reproductor en AnimatedSize para que el espacio que ocupa
+            // se anime suavemente, permitiendo que el contenido de abajo suba.
+            AnimatedSize(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              child: _NowplayingWidget(isNewsSelected: _selectedTabIndex == 1),
+            ),
+            const SizedBox(height: 16), // Espacio entre reproductor y pestañas
             Row(
               children: _tabs.asMap().entries.map((entry) {
                 final index = entry.key;
@@ -72,23 +82,31 @@ class _HomePageState extends State<HomePage> {
                 );
               }).toList(),
             ),
-            // Widget animado que solo aparece cuando la pestaña "Noticias" está seleccionada
+            // Este Column agrupa los widgets de la sección de noticias y se anima
+            // para aparecer o desaparecer, optimizando el espacio vertical.
             AnimatedSize(
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeInOut,
               child: _selectedTabIndex == 1
-                  ? _NewsCategories(
-                      categories: _newsCategories,
-                      selectedCategoryId: _selectedNewsCategoryId,
-                      onCategorySelected: (id) {
-                        setState(() {
-                          _selectedNewsCategoryId = id;
-                        });
-                      },
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          height: 16,
+                        ), // Espacio antes de las categorías
+                        _NewsCategories(
+                          categories: _newsCategories,
+                          selectedCategoryId: _selectedNewsCategoryId,
+                          onCategorySelected: (id) {
+                            setState(() {
+                              _selectedNewsCategoryId = id;
+                            });
+                          },
+                        ),
+                      ],
                     )
                   : const SizedBox.shrink(),
             ),
-            const SizedBox(height: 10),
             Expanded(
               child: IndexedStack(
                 index: _selectedTabIndex,
@@ -226,7 +244,6 @@ class _NewsCategories extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 35,
-      margin: const EdgeInsets.only(top: 16),
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: categories.entries.map((entry) {
@@ -332,10 +349,16 @@ class _NewsWidgetState extends State<_NewsWidget> {
 
         final posts = snapshot.data!;
         return ListView.builder(
+          scrollDirection: Axis.horizontal,
           itemCount: posts.length,
           itemBuilder: (context, index) {
             final post = posts[index];
-            return _NewsCard(post: post);
+            // Envolvemos la tarjeta en un SizedBox para darle un ancho específico
+            // en la lista horizontal. Esto hace que se vea parte de la siguiente tarjeta.
+            return SizedBox(
+              width: MediaQuery.of(context).size.width * 0.85,
+              child: _NewsCard(post: post),
+            );
           },
         );
       },
@@ -401,20 +424,101 @@ class _NewsCard extends StatelessWidget {
   }
 }
 
-class _SportsWidget extends StatelessWidget {
+class _SportsWidget extends StatefulWidget {
   const _SportsWidget();
 
   @override
+  State<_SportsWidget> createState() => _SportsWidgetState();
+}
+
+class _SportsWidgetState extends State<_SportsWidget> {
+  late Future<List<Video>> _videosFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Cargamos los videos del canal de YouTube
+    _videosFuture = YoutubeService().fetchChannelVideos();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.0),
-        child: Text(
-          'Sección de Deportes próximamente...',
-          style: TextStyle(fontSize: 18),
-          textAlign: TextAlign.center,
-        ),
-      ),
+    return FutureBuilder<List<Video>>(
+      future: _videosFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text(
+                'Error al cargar los videos: ${snapshot.error}',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No se encontraron videos.'));
+        }
+
+        final videos = snapshot.data!;
+        return ListView.builder(
+          itemCount: videos.length,
+          itemBuilder: (context, index) {
+            final video = videos[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoPlayerPage(videoId: video.id),
+                  ),
+                );
+              },
+              child: Card(
+                color: const Color(0xFF1A2B40),
+                margin: const EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 4.0,
+                ),
+                elevation: 5,
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: video.thumbnailUrl,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: 200,
+                        color: Colors.grey[800],
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.video_library_outlined, size: 50),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Text(
+                        video.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
