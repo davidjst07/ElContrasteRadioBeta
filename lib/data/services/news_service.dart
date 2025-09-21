@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 class NewsService {
   static const _baseUrl = 'https://elcontraste.co/wp-json/wp/v2/posts?_embed';
 
-  Future<List<Post>> fetchPosts() async {
+  Future<List<Post>> fetchPosts({int? categoryId}) async {
     try {
       final response = await http.get(Uri.parse(_baseUrl));
 

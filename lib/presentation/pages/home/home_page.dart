@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:elcontrasteapp/data/models/post_model.dart';
-import 'package:elcontrasteapp/data/services/news_service.dart';
+import 'package:elcontrasteapp/presentation/pages/home/post_model.dart';
+import 'package:elcontrasteapp/presentation/pages/home/news_service.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
 import 'package:elcontrasteapp/presentation/widgets/radio_player_widget.dart';
 
@@ -17,17 +17,27 @@ class _HomePageState extends State<HomePage> {
   int _selectedTabIndex = 0;
   final List<String> _tabs = ["Radio", "Noticias", "Deportes"];
 
+  // Definimos las categorías de noticias con sus respectivos IDs de WordPress
+  final Map<String, int?> _newsCategories = {
+    'Últimas': null, // null para obtener todas las noticias
+    // NOTA: Los IDs 10 (Pasto) y 11 (Nariño) parecen tener un problema en el servidor de 'elcontraste.co'
+    // y no devuelven noticias. Esto es un problema externo a la app que debería ser revisado en el sitio web.
+    'Pasto': 2,
+    'Nariño': 1,
+    // Se ha cambiado el ID 12 por el 17, que corresponde a la categoría 'Nación' en WordPress
+    // y sí devuelve los resultados esperados para Colombia.
+    'Colombia': 7,
+  };
+  int? _selectedNewsCategoryId; // Inicia con 'Ultimas Noticias' (null)
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: const Icon(Icons.radio),
-        //title: const Text('El Contraste App'),
         actions: [
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              //Text('21:55', style: TextStyle(fontWeight: FontWeight.bold)),
               Text(
                 ' EN VIVO ',
                 style: const TextStyle(
@@ -44,8 +54,8 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            Image.asset('assets/logoradio.png', height: 90),
-            const _NowplayingWidget(),
+            Image.asset('assets/logoradio.png', height: 80),
+            _NowplayingWidget(isNewsSelected: _selectedTabIndex == 1),
             const SizedBox(height: 24),
             Row(
               children: _tabs.asMap().entries.map((entry) {
@@ -62,14 +72,35 @@ class _HomePageState extends State<HomePage> {
                 );
               }).toList(),
             ),
+            // Widget animado que solo aparece cuando la pestaña "Noticias" está seleccionada
+            AnimatedSize(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              child: _selectedTabIndex == 1
+                  ? _NewsCategories(
+                      categories: _newsCategories,
+                      selectedCategoryId: _selectedNewsCategoryId,
+                      onCategorySelected: (id) {
+                        setState(() {
+                          _selectedNewsCategoryId = id;
+                        });
+                      },
+                    )
+                  : const SizedBox.shrink(),
+            ),
             const SizedBox(height: 10),
             Expanded(
               child: IndexedStack(
                 index: _selectedTabIndex,
-                children: const [
-                  _ProgrammingWidget(),
-                  _NewsWidget(),
-                  _SportsWidget(),
+                children: [
+                  const _ProgrammingWidget(),
+                  // Usamos una ValueKey para que el widget de noticias se reconstruya
+                  // y recargue los posts cuando cambia la categoría seleccionada.
+                  _NewsWidget(
+                    key: ValueKey(_selectedNewsCategoryId),
+                    categoryId: _selectedNewsCategoryId,
+                  ),
+                  const _SportsWidget(),
                 ],
               ),
             ),
@@ -81,29 +112,61 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _NowplayingWidget extends StatelessWidget {
-  const _NowplayingWidget();
+  final bool isNewsSelected;
 
-  @override
-  Widget build(BuildContext context) {
+  const _NowplayingWidget({this.isNewsSelected = false});
+
+  Widget _buildFullPlayer(BuildContext context) {
     return Card(
-      color: Color.fromARGB(255, 7, 38, 65),
+      color: const Color.fromARGB(255, 7, 38, 65),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
+      child: const Padding(
+        padding: EdgeInsets.all(20.0),
         child: Column(
           children: [
-            //const Icon(Icons.radio, size: 60, color: Colors.white70),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'El Contraste Radio',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 5),
-            const RadioPlayerWidget(),
+            SizedBox(height: 5),
+            RadioPlayerWidget(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCompactPlayer(BuildContext context) {
+    return Card(
+      color: const Color.fromARGB(255, 7, 38, 65),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+        child: RadioPlayerWidget(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedCrossFade(
+      duration: const Duration(milliseconds: 400),
+      firstChild: _buildFullPlayer(context),
+      secondChild: _buildCompactPlayer(context),
+      crossFadeState: isNewsSelected
+          ? CrossFadeState.showSecond
+          : CrossFadeState.showFirst,
+      // Este layoutBuilder ayuda a que la animación de tamaño sea más fluida
+      // al evitar problemas de overflow mientras los widgets cambian de tamaño.
+      layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
+        return Stack(
+          alignment: Alignment.center,
+          children: <Widget>[bottomChild, topChild],
+        );
+      },
     );
   }
 }
@@ -147,8 +210,82 @@ class _TabButton extends StatelessWidget {
   }
 }
 
+// Widget para mostrar los botones de filtro de categorías de noticias
+class _NewsCategories extends StatelessWidget {
+  final Map<String, int?> categories;
+  final int? selectedCategoryId;
+  final ValueChanged<int?> onCategorySelected;
+
+  const _NewsCategories({
+    required this.categories,
+    required this.selectedCategoryId,
+    required this.onCategorySelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 35,
+      margin: const EdgeInsets.only(top: 16),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: categories.entries.map((entry) {
+          final name = entry.key;
+          final id = entry.value;
+          return _CategoryButton(
+            text: name,
+            selected: selectedCategoryId == id,
+            onTap: () => onCategorySelected(id),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// Botón individual para una categoría de noticia
+class _CategoryButton extends StatelessWidget {
+  final String text;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CategoryButton({
+    required this.text,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? Colors.white : Colors.grey[400]!,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: selected ? const Color(0xFF1A2B40) : Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NewsWidget extends StatefulWidget {
-  const _NewsWidget();
+  final int? categoryId;
+  const _NewsWidget({super.key, this.categoryId});
 
   @override
   State<_NewsWidget> createState() => _NewsWidgetState();
@@ -160,7 +297,10 @@ class _NewsWidgetState extends State<_NewsWidget> {
   @override
   void initState() {
     super.initState();
-    _postsFuture = NewsService().fetchPosts();
+    // Obtenemos los posts para la categoría que nos pasan.
+    // Como usamos una ValueKey en el widget, initState se vuelve a llamar
+    // cada vez que la categoría cambia, recargando las noticias.
+    _postsFuture = NewsService().fetchPosts(categoryId: widget.categoryId);
   }
 
   @override
@@ -178,7 +318,16 @@ class _NewsWidgetState extends State<_NewsWidget> {
             ),
           );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No hay noticias disponibles.'));
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Text(
+                'No se encontraron noticias en esta categoría.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+          );
         }
 
         final posts = snapshot.data!;
@@ -208,6 +357,9 @@ class _NewsCard extends StatelessWidget {
         );
       },
       child: Card(
+        color: const Color(
+          0xFF1A2B40,
+        ), // <-- AÑADE ESTA LÍNEA PARA CAMBIAR EL COLOR
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         elevation: 5,
         clipBehavior: Clip.antiAlias,
@@ -234,13 +386,13 @@ class _NewsCard extends StatelessWidget {
               ),
             Padding(
               padding: const EdgeInsets.all(12.0),
-              child: Text(
+              /*child: Text(
                 post.title,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
-              ),
+              ),*/
             ),
           ],
         ),
