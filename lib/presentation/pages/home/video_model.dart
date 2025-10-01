@@ -11,6 +11,7 @@ class Video {
     required this.publishedAt,
   });
 
+  // Constructor para videos de YouTube
   factory Video.fromJson(Map<String, dynamic> json) {
     return Video(
       id: json['id']['videoId'],

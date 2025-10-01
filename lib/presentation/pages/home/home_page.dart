@@ -18,7 +18,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedTabIndex = 0;
-  final List<String> _tabs = ["Radio", "Noticias", "Video"];
+  final List<String> _tabs = ["Radio", "Noticias", "Videos"];
 
   // Definimos las categorías de noticias con sus respectivos IDs de WordPress
   final Map<String, int?> _newsCategories = {
@@ -118,7 +118,7 @@ class _HomePageState extends State<HomePage> {
                     key: ValueKey(_selectedNewsCategoryId),
                     categoryId: _selectedNewsCategoryId,
                   ),
-                  const _SportsWidget(),
+                  const _VideosWidget(),
                 ],
               ),
             ),
@@ -242,7 +242,7 @@ class _NewsCategories extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 35,
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -424,14 +424,14 @@ class _NewsCard extends StatelessWidget {
   }
 }
 
-class _SportsWidget extends StatefulWidget {
-  const _SportsWidget();
+class _VideosWidget extends StatefulWidget {
+  const _VideosWidget();
 
   @override
-  State<_SportsWidget> createState() => _SportsWidgetState();
+  State<_VideosWidget> createState() => _VideosWidgetState();
 }
 
-class _SportsWidgetState extends State<_SportsWidget> {
+class _VideosWidgetState extends State<_VideosWidget> {
   late Future<List<Video>> _videosFuture;
 
   @override
@@ -487,19 +487,22 @@ class _SportsWidgetState extends State<_SportsWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CachedNetworkImage(
-                      imageUrl: video.thumbnailUrl,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
+                    if (video.thumbnailUrl.isNotEmpty)
+                      CachedNetworkImage(
+                        imageUrl: video.thumbnailUrl,
                         height: 200,
-                        color: Colors.grey[800],
-                        child: const Center(child: CircularProgressIndicator()),
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          height: 200,
+                          color: Colors.grey[800],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.video_library_outlined, size: 50),
                       ),
-                      errorWidget: (context, url, error) =>
-                          const Icon(Icons.video_library_outlined, size: 50),
-                    ),
                     Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Text(

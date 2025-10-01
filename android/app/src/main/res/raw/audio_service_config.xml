@@ -1,0 +1,15 @@
+<audio_service>
+    <!-- Define las acciones que estarán disponibles.
+         0: play/pause, 1: stop -->
+    <actions>
+        <action name="play_pause" icon="drawable/audio_service_play"/>
+        <action name="stop" icon="drawable/audio_service_stop"/>
+    </actions>
+
+    <!-- Define qué acciones aparecen en la notificación compacta. -->
+    <compact_view>
+        <action index="0"/> <!-- play/pause -->
+        <action index="1"/> <!-- stop -->
+    </compact_view>
+
+</audio_service>
