@@ -7,16 +7,15 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
-  cached_network_image: ^3.4.1
-  connectivity_plus: ^7.0.0
+  audioplayers: ^6.5.1
   flutter:
     sdk: flutter
-  flutter_dotenv: ^6.0.0
-  flutter_html: ^3.0.0
-  http: ^1.5.0
-  just_audio: 0.9.36
-  just_audio_background: 0.0.1-beta.11
   provider: ^6.1.5+1
+  connectivity_plus: ^7.0.0
+  flutter_dotenv: ^6.0.0
+  http: ^1.5.0
+  cached_network_image: ^3.4.1
+  flutter_html: ^3.0.0
   youtube_player_flutter: ^9.1.2
 
 dev_dependencies:
@@ -29,7 +28,7 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/icon/app_icon.png"
-  min_sdk_android: 21 
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true

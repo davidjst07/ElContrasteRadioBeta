@@ -32,7 +32,7 @@ class NewsDetailPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                post.title,
+                "Leer más",
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -40,7 +40,38 @@ class NewsDetailPage extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Html(data: post.content),
+              child: Html(
+                data: post.content,
+                style: {
+                  "body": Style(
+                    margin: Margins.zero,
+                    padding: HtmlPaddings.zero,
+                  ),
+                },
+                extensions: [
+                  TagExtension(
+                    tagsToExtend: const {'img'},
+                    builder: (ExtensionContext context) {
+                      final src = context.attributes['src'];
+                      if (src != null) {
+                        return CachedNetworkImage(
+                          imageUrl: src,
+                          fit: BoxFit.fitWidth,
+                          placeholder: (context, url) =>
+                              const Center(child: CircularProgressIndicator()),
+                          errorWidget: (context, url, error) =>
+                              const Icon(Icons.broken_image, size: 50),
+                        );
+                      }
+                      return Container();
+                    },
+                  ),
+                ],
+                onLinkTap: (url, _, __) {
+                  // Aquí puedes agregar lógica para abrir enlaces si lo necesitas en el futuro
+                  debugPrint("Tapped on link: $url");
+                },
+              ),
             ),
           ],
         ),

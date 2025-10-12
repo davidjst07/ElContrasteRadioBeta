@@ -3,6 +3,17 @@ import 'package:elcontrasteapp/presentation/pages/home/post_model.dart';
 import 'package:http/http.dart' as http;
 
 class NewsService {
+  // 1. Instancia privada y estática (Singleton)
+  static final NewsService _instance = NewsService._internal();
+
+  // 2. Factory constructor que devuelve siempre la misma instancia
+  factory NewsService() {
+    return _instance;
+  }
+
+  // 3. Constructor privado interno
+  NewsService._internal();
+
   // La URL de la API REST de tu WordPress.
   // El parámetro `_embed` es clave para que nos incluya datos adicionales como la imagen destacada.
   static const String _baseUrl =

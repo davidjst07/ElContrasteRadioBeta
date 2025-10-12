@@ -1,79 +1,85 @@
-
 import 'package:elcontrasteapp/audio_state_service.dart';
-
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class RadioPlayerWidget extends StatelessWidget {
-  const RadioPlayerWidget({super.key});
+  final bool isCompact;
+
+  const RadioPlayerWidget({
+    super.key,
+    this.isCompact = false, // Por defecto no es compacto
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos la instancia única de AudioStateService desde el provider.
-    // Ponemos listen: false para evitar reconstruir toda la columna en cada cambio,
-    // ya que los Consumers se encargarán de reconstrucciones específicas.
-    final audioService = Provider.of<AudioStateService>(context, listen: false);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        StreamBuilder<PlayerState>(
-          stream: audioService.playerStateStream,
-          builder: (context, snapshot) {
-            final playerState = snapshot.data;
-            final processingState = playerState?.processingState;
-
-            if (processingState == ProcessingState.loading ||
-                processingState == ProcessingState.buffering) {
-              return const CircularProgressIndicator(color: Colors.white);
-            }
-
-            final isPlaying = playerState?.playing ?? false;
-            return IconButton(
-              icon: Icon(
-                isPlaying
-                    ? Icons.pause_circle_filled_rounded
-                    : Icons.play_circle_filled_rounded,
-              ),
-              iconSize: 64.0,
-              color: Colors.white,
-              onPressed: isPlaying ? audioService.pause : audioService.play,
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        // Consumer solo reconstruye este widget de Texto cuando statusMessage cambia.
-        Consumer<AudioStateService>(
-          builder: (context, service, child) {
-            return Text(
-              service.statusMessage,
-              style: const TextStyle(color: Colors.white70),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+    // Usamos Consumer para que solo este widget se reconstruya cuando cambie el estado del audio.
+    return Consumer<AudioStateService>(
+      builder: (context, audioService, child) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.volume_down, color: Colors.white70),
-            Expanded(
-              // Consumer solo reconstruye el Slider cuando el volumen cambia.
-              child: Consumer<AudioStateService>(
-                builder: (context, service, child) => Slider(
-                  value: service.volume,
-                  onChanged: service.setVolume,
-                  min: 0.0,
-                  max: 1.0,
-                  activeColor: Colors.white,
-                  inactiveColor: Colors.white30,
-                ),
-              ),
+            StreamBuilder<PlayerState>(
+              stream: audioService.playerStateStream,
+              builder: (context, snapshot) {
+                final playerState = snapshot.data ?? PlayerState.stopped;
+
+                // En audioplayers, no tenemos un estado de buffering explícito.
+                // Mostramos el indicador de carga basado en el mensaje de estado.
+                if (audioService.statusMessage.contains('Cargando')) {
+                  // En modo compacto, el botón es más pequeño.
+                  return SizedBox(
+                    height: isCompact ? 48 : 64,
+                    width: isCompact ? 48 : 64,
+                    child: const CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+
+                final isPlaying = playerState == PlayerState.playing;
+                return IconButton(
+                  icon: Icon(
+                    isPlaying
+                        ? Icons.pause_circle_filled_rounded
+                        : Icons.play_circle_filled_rounded,
+                  ),
+                  iconSize: isCompact ? 48.0 : 64.0,
+                  color: Colors.white,
+                  onPressed: isPlaying ? audioService.pause : audioService.play,
+                );
+              },
             ),
-            const Icon(Icons.volume_up, color: Colors.white70),
+            if (!isCompact) ...[
+              const SizedBox(height: 8),
+              Text(
+                audioService.statusMessage,
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisSize:
+                    MainAxisSize.min, // 👈 evita el error de constraints
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.volume_down, color: Colors.white70),
+                  Flexible(
+                    // 👈 reemplaza Expanded por Flexible
+                    fit: FlexFit.loose,
+                    child: Slider(
+                      value: audioService.volume,
+                      onChanged: audioService.setVolume,
+                      min: 0.0,
+                      max: 1.0,
+                      activeColor: Colors.white,
+                      inactiveColor: Colors.white30,
+                    ),
+                  ),
+                  const Icon(Icons.volume_up, color: Colors.white70),
+                ],
+              ),
+            ],
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }

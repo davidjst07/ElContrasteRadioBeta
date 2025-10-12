@@ -5,6 +5,17 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class YoutubeService {
+  // 1. Instancia privada y estática (Singleton)
+  static final YoutubeService _instance = YoutubeService._internal();
+
+  // 2. Factory constructor que devuelve siempre la misma instancia
+  factory YoutubeService() {
+    return _instance;
+  }
+
+  // 3. Constructor privado interno
+  YoutubeService._internal();
+
   // Leemos las claves de forma segura desde las variables de entorno
   final String _apiKey = dotenv.env['YOUTUBE_API_KEY'] ?? 'NO_KEY';
   final String _channelId = dotenv.env['YOUTUBE_CHANNEL_ID'] ?? 'NO_CHANNEL';
@@ -33,12 +44,14 @@ class YoutubeService {
             );
           }
           debugPrint(
-              'La API de YouTube no devolvió items, pero tampoco un error. Respuesta: ${response.body}');
+            'La API de YouTube no devolvió items, pero tampoco un error. Respuesta: ${response.body}',
+          );
           return [];
         }
       } else {
         debugPrint(
-            'Error en la respuesta de YouTube API. Código: ${response.statusCode}, Cuerpo: ${response.body}');
+          'Error en la respuesta de YouTube API. Código: ${response.statusCode}, Cuerpo: ${response.body}',
+        );
         throw Exception(
           'Falló al cargar los videos (código: ${response.statusCode})',
         );

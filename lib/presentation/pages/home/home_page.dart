@@ -33,6 +33,18 @@ class _HomePageState extends State<HomePage> {
   };
   int? _selectedNewsCategoryId; // Inicia con 'Ultimas Noticias' (null)
 
+  // Lista para almacenar los widgets de las pestañas y cargarlos perezosamente.
+  late final List<Widget?> _tabWidgets;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicializamos la lista con nulls. El tamaño debe coincidir con el número de pestañas.
+    _tabWidgets = List<Widget?>.filled(_tabs.length, null);
+    // Creamos el widget de la primera pestaña (Radio) ya que es la inicial.
+    _tabWidgets[0] = const _ProgrammingWidget();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,24 +120,50 @@ class _HomePageState extends State<HomePage> {
                   : const SizedBox.shrink(),
             ),
             Expanded(
-              child: IndexedStack(
-                index: _selectedTabIndex,
-                children: [
-                  const _ProgrammingWidget(),
-                  // Usamos una ValueKey para que el widget de noticias se reconstruya
-                  // y recargue los posts cuando cambia la categoría seleccionada.
-                  _NewsWidget(
-                    key: ValueKey(_selectedNewsCategoryId),
-                    categoryId: _selectedNewsCategoryId,
-                  ),
-                  const _VideosWidget(),
-                ],
-              ),
+              // Este es el widget que nos dará la carga perezosa.
+              child: _buildTabContent(),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // Método para construir el contenido de la pestaña de forma perezosa.
+  Widget _buildTabContent() {
+    // Si el widget para la pestaña actual aún no ha sido creado (es null), lo creamos.
+    if (_selectedTabIndex == 1) {
+      // Para la pestaña de noticias, la reconstruimos siempre para que el filtro de categoría funcione.
+      _tabWidgets[1] = _getWidgetForTab(_selectedTabIndex);
+    } else {
+      // Para las otras pestañas, solo las creamos una vez.
+      _tabWidgets[_selectedTabIndex] ??= _getWidgetForTab(_selectedTabIndex);
+    }
+
+    // Usamos un AnimatedSwitcher para una transición suave entre pestañas.
+    // La clave (key) es importante para que AnimatedSwitcher sepa que el widget ha cambiado.
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        key: ValueKey<int>(_selectedTabIndex),
+        child: _tabWidgets[_selectedTabIndex],
+      ),
+    );
+  }
+
+  // Devuelve el widget correspondiente a cada pestaña.
+  Widget _getWidgetForTab(int index) {
+    switch (index) {
+      case 1:
+        return _NewsWidget(
+          key: ValueKey<int?>(_selectedNewsCategoryId),
+          categoryId: _selectedNewsCategoryId,
+        );
+      case 2:
+        return const _VideosWidget();
+      default: // case 0 y cualquier otro caso
+        return const _ProgrammingWidget();
+    }
   }
 }
 
@@ -135,21 +173,23 @@ class _NowplayingWidget extends StatelessWidget {
   const _NowplayingWidget({this.isNewsSelected = false});
 
   Widget _buildFullPlayer(BuildContext context) {
+    // Obtenemos el servicio para escuchar los cambios en la canción actual.
+
     return Card(
       color: const Color.fromARGB(255, 7, 38, 65),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 4,
-      child: const Padding(
-        padding: EdgeInsets.all(20.0),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 28.0),
         child: Column(
           children: [
-            SizedBox(height: 16),
-            Text(
-              'El Contraste Radio',
+            const Text(
+              "El Contraste Radio", // Título estático
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 5),
-            RadioPlayerWidget(),
+
+            const RadioPlayerWidget(),
           ],
         ),
       ),
@@ -157,13 +197,38 @@ class _NowplayingWidget extends StatelessWidget {
   }
 
   Widget _buildCompactPlayer(BuildContext context) {
+    // Obtenemos el servicio para escuchar los cambios en la canción actual.
     return Card(
       color: const Color.fromARGB(255, 7, 38, 65),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 4,
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-        child: RadioPlayerWidget(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Ahora suena:",
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  Text(
+                    "El Contraste Radio", // Título estático
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+            // Envolvemos el RadioPlayerWidget en Flexible para que se ajuste
+            // al espacio disponible en la Row, solucionando el error de layout.
+            // Le indicamos que es la versión compacta.
+            const Flexible(child: RadioPlayerWidget(isCompact: true)),
+          ],
+        ),
       ),
     );
   }
@@ -357,6 +422,7 @@ class _NewsWidgetState extends State<_NewsWidget> {
             // en la lista horizontal. Esto hace que se vea parte de la siguiente tarjeta.
             return SizedBox(
               width: MediaQuery.of(context).size.width * 0.85,
+              height: 450,
               child: _NewsCard(post: post),
             );
           },
@@ -380,8 +446,11 @@ class _NewsCard extends StatelessWidget {
         );
       },
       child: Card(
-        color: const Color(
-          0xFF1A2B40,
+        color: const Color.fromARGB(
+          255,
+          13,
+          42,
+          78,
         ), // <-- AÑADE ESTA LÍNEA PARA CAMBIAR EL COLOR
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         elevation: 5,
@@ -400,22 +469,23 @@ class _NewsCard extends StatelessWidget {
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
                     height: 180,
-                    color: Colors.grey[800],
+                    color: const Color.fromARGB(255, 32, 24, 104),
                     child: const Center(child: CircularProgressIndicator()),
                   ),
                   errorWidget: (context, url, error) =>
                       const Icon(Icons.image_not_supported, size: 50),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              /*child: Text(
-                post.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+            const Expanded(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Text(
+                    "Leer más",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),*/
+              ),
             ),
           ],
         ),

@@ -1,94 +1,66 @@
+import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 
 // Esta clase es ahora la única fuente de verdad para el estado de la reproducción de audio.
 class AudioStateService with ChangeNotifier {
-  // Creamos nuestra propia instancia. just_audio_background la detectará.
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  static const String _radioUrl = 'https://stream.zeno.fm/3u4rvdaxhrhvv';
+  static const String _radioUrl = 'https://a7.asurahosting.com:7170/radio.mp3';
 
-  bool _isSourcePrepared = false;
   double _volume = 0.75;
   String _statusMessage = 'Listo para reproducir';
+  PlayerState _playerState = PlayerState.stopped;
+
+  // StreamController para el estado del reproductor, imitando el stream de just_audio
+  final StreamController<PlayerState> _playerStateController =
+      StreamController.broadcast();
 
   // Getters para la UI
   double get volume => _volume;
   String get statusMessage => _statusMessage;
-  Stream<PlayerState> get playerStateStream => _audioPlayer.playerStateStream;
-  bool get isPlaying => _audioPlayer.playing;
+  Stream<PlayerState> get playerStateStream => _playerStateController.stream;
+  bool get isPlaying => _playerState == PlayerState.playing;
 
   AudioStateService() {
     _init();
   }
 
   void _init() {
-    // Escucha los cambios de estado del reproductor para actualizar la UI
-    _audioPlayer.playerStateStream.listen((state) {
-      switch (state.processingState) {
-        case ProcessingState.idle:
-          // Cuando el reproductor está inactivo (después de stop() o al inicio).
+    // audioplayers usa un modo "release" por defecto que detiene el stream al pausar.
+    // Para radio, queremos mantener la conexión.
+    _audioPlayer.setReleaseMode(ReleaseMode.stop);
+
+    // Escucha los cambios de estado del reproductor
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      _playerState = state;
+      _playerStateController.add(state); // Emitir el estado al stream
+
+      switch (state) {
+        case PlayerState.playing:
+          _statusMessage = 'Reproduciendo en vivo';
+          break;
+        case PlayerState.paused:
+          _statusMessage = 'Pausado';
+          break;
+        case PlayerState.stopped:
           _statusMessage = 'Toca play para escuchar';
-          _isSourcePrepared =
-              false; // Forzamos a preparar la fuente de nuevo en el próximo play.
           break;
-        case ProcessingState.loading:
-          _statusMessage = 'Cargando radio...';
-          break;
-        case ProcessingState.buffering:
-          _statusMessage = 'Cargando...';
-          break;
-        case ProcessingState.ready:
-          _statusMessage = state.playing ? 'Reproduciendo en vivo' : 'Pausado';
-          break;
-        case ProcessingState.completed:
-          // Para un stream en vivo, 'completed' puede significar un error o que se detuvo.
+        case PlayerState.completed:
           _statusMessage = 'Stream finalizado. Toca play para reiniciar.';
           break;
+        // audioplayers no tiene un estado de buffering/loading explícito como just_audio.
+        // Se maneja internamente. Podemos mostrar 'Cargando' antes de llamar a play.
+        default:
+          _statusMessage = 'Listo';
       }
       notifyListeners();
     });
-    // La fuente de audio se preparará la primera vez que se presione play.
-  }
-
-  Future<void> _prepareAudioSource() async {
-    await _audioPlayer.setVolume(_volume);
-    // Configura la fuente de audio con metadatos para la reproducción en segundo plano
-    final audioSource = AudioSource.uri(
-      Uri.parse(_radioUrl),
-      tag: MediaItem(
-        id: 'el_contraste_radio_live',
-        album: "Radio en Vivo",
-        title: "El Contraste Radio",
-        artUri: Uri.parse(
-          "https://cdn.zeno.fm/stations/3u4rvdaxhrhvv/uploads/ec/logo/elcontraste-cuadrado.png",
-        ),
-      ),
-    );
-    try {
-      // No precargamos hasta que el usuario presione play
-      await _audioPlayer.setAudioSource(audioSource, preload: false);
-      _isSourcePrepared = true;
-    } catch (e) {
-      debugPrint("Error al configurar la fuente de audio: $e");
-      _statusMessage = "Error al iniciar la radio";
-      notifyListeners();
-    }
   }
 
   Future<void> play() async {
-    // Prepara la fuente de audio de forma perezosa si aún no se ha hecho.
-    if (!_isSourcePrepared) {
-      await _prepareAudioSource();
-      // Si la preparación falló, no continuamos.
-      if (!_isSourcePrepared) {
-        debugPrint('No se pudo preparar la fuente de audio, abortando play().');
-        return;
-      }
-    }
-
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
       if (connectivityResult.contains(ConnectivityResult.none)) {
@@ -96,11 +68,37 @@ class AudioStateService with ChangeNotifier {
         notifyListeners();
         return;
       }
-      await _audioPlayer.play();
-    } catch (e) {
-      _statusMessage = 'Error al conectar';
+
+      _statusMessage = 'Cargando radio...';
       notifyListeners();
-      debugPrint('Error al reproducir radio: $e');
+
+      // Para audioplayers, play() también maneja la carga de la fuente.
+      // Es importante configurar el AudioContext para el comportamiento en segundo plano.
+      await _audioPlayer.play(
+        UrlSource(_radioUrl),
+        volume: _volume,
+        ctx: AudioContext(
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: true,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: const {},
+          ),
+        ),
+      );
+    } on AudioPlayerException catch (e) {
+      _statusMessage = 'Error de reproductor';
+      notifyListeners();
+      debugPrint('Error de audioplayers: $e');
+    } catch (e) {
+      _statusMessage = 'Error inesperado';
+      notifyListeners();
+      debugPrint('Error general al reproducir: $e');
     }
   }
 
@@ -108,19 +106,17 @@ class AudioStateService with ChangeNotifier {
     try {
       await _audioPlayer.pause();
     } catch (e) {
-      debugPrint('Error al pausar radio: $e');
+      debugPrint('Error al pausar: $e');
       _statusMessage = 'Error al pausar';
       notifyListeners();
     }
   }
 
-  // El paquete just_audio_background llamará a este método
-  // cuando se presione el botón de stop en la notificación.
   Future<void> stop() async {
     try {
       await _audioPlayer.stop();
     } catch (e) {
-      debugPrint('Error al detener la radio: $e');
+      debugPrint('Error al detener: $e');
       _statusMessage = 'Error al detener';
       notifyListeners();
     }
@@ -132,12 +128,11 @@ class AudioStateService with ChangeNotifier {
     notifyListeners();
   }
 
-  
-  // No debemos hacer dispose del player, ya que el servicio de fondo
-  // debe seguir funcionando aunque la UI se destruya.
-  // El sistema operativo se encargará de liberar los recursos cuando sea necesario.
-  // void dispose() {
-  //   _audioPlayer.dispose();
-  //   super.dispose();
-  // }
+  @override
+  void dispose() {
+    // Es importante liberar los recursos del player.
+    _playerStateController.close();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
 }
