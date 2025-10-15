@@ -8,12 +8,11 @@ class RadioPlayerWidget extends StatelessWidget {
 
   const RadioPlayerWidget({
     super.key,
-    this.isCompact = false, // Por defecto no es compacto
+    this.isCompact = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Usamos Consumer para que solo este widget se reconstruya cuando cambie el estado del audio.
     return Consumer<AudioStateService>(
       builder: (context, audioService, child) {
         return Column(
@@ -24,10 +23,7 @@ class RadioPlayerWidget extends StatelessWidget {
               builder: (context, snapshot) {
                 final playerState = snapshot.data ?? PlayerState.stopped;
 
-                // En audioplayers, no tenemos un estado de buffering explícito.
-                // Mostramos el indicador de carga basado en el mensaje de estado.
                 if (audioService.statusMessage.contains('Cargando')) {
-                  // En modo compacto, el botón es más pequeño.
                   return SizedBox(
                     height: isCompact ? 48 : 64,
                     width: isCompact ? 48 : 64,
@@ -56,13 +52,11 @@ class RadioPlayerWidget extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Row(
-                mainAxisSize:
-                    MainAxisSize.min, // 👈 evita el error de constraints
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.volume_down, color: Colors.white70),
                   Flexible(
-                    // 👈 reemplaza Expanded por Flexible
                     fit: FlexFit.loose,
                     child: Slider(
                       value: audioService.volume,
@@ -76,6 +70,21 @@ class RadioPlayerWidget extends StatelessWidget {
                   const Icon(Icons.volume_up, color: Colors.white70),
                 ],
               ),
+              const SizedBox(height: 8),
+              // Mostrar título y artista de la canción actual
+              if (audioService.nowPlaying != null)
+                Column(
+                  children: [
+                    Text(
+                      'Reproduciendo: ${audioService.nowPlaying!.nowPlayingTitle ?? 'N/A'}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    Text(
+                      'Artista: ${audioService.nowPlaying!.nowPlayingArtist ?? 'N/A'}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
             ],
           ],
         );

@@ -170,11 +170,10 @@ class _HomePageState extends State<HomePage> {
 class _NowplayingWidget extends StatelessWidget {
   final bool isNewsSelected;
 
+  // El parámetro se conservará, pero ya no se usará.
   const _NowplayingWidget({this.isNewsSelected = false});
 
   Widget _buildFullPlayer(BuildContext context) {
-    // Obtenemos el servicio para escuchar los cambios en la canción actual.
-
     return Card(
       color: const Color.fromARGB(255, 7, 38, 65),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -184,11 +183,10 @@ class _NowplayingWidget extends StatelessWidget {
         child: Column(
           children: [
             const Text(
-              "El Contraste Radio", // Título estático
+              "El Contraste Radio",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
-
             const RadioPlayerWidget(),
           ],
         ),
@@ -196,8 +194,9 @@ class _NowplayingWidget extends StatelessWidget {
     );
   }
 
+  // Dejamos la versión compacta aquí pero comentada
+  /*
   Widget _buildCompactPlayer(BuildContext context) {
-    // Obtenemos el servicio para escuchar los cambios en la canción actual.
     return Card(
       color: const Color.fromARGB(255, 7, 38, 65),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -215,7 +214,7 @@ class _NowplayingWidget extends StatelessWidget {
                     style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   Text(
-                    "El Contraste Radio", // Título estático
+                    "El Contraste Radio",
                     style: TextStyle(fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -232,9 +231,15 @@ class _NowplayingWidget extends StatelessWidget {
       ),
     );
   }
+  */
 
   @override
   Widget build(BuildContext context) {
+    // Always show the full player; do not alternate by isNewsSelected.
+    return _buildFullPlayer(context);
+
+    // Código original con AnimatedCrossFade, solo para referencia:
+    /*
     return AnimatedCrossFade(
       duration: const Duration(milliseconds: 400),
       firstChild: _buildFullPlayer(context),
@@ -242,8 +247,6 @@ class _NowplayingWidget extends StatelessWidget {
       crossFadeState: isNewsSelected
           ? CrossFadeState.showSecond
           : CrossFadeState.showFirst,
-      // Este layoutBuilder ayuda a que la animación de tamaño sea más fluida
-      // al evitar problemas de overflow mientras los widgets cambian de tamaño.
       layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
         return Stack(
           alignment: Alignment.center,
@@ -251,6 +254,7 @@ class _NowplayingWidget extends StatelessWidget {
         );
       },
     );
+    */
   }
 }
 
