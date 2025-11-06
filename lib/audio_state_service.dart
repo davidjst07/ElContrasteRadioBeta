@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'package:audio_service/audio_service.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'now_playing_service.dart';
+import 'now_playing_service.dart'; // Tu servicio para obtener metadata externa
 
-class AudioStateService extends ChangeNotifier {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+class AudioHandlerWithNowPlaying extends BaseAudioHandler {
+  final AudioPlayer _player = AudioPlayer();
 
   PlayerState _playerState = PlayerState.stopped;
   PlayerState get playerState => _playerState;
@@ -15,28 +16,46 @@ class AudioStateService extends ChangeNotifier {
   NowPlaying? _nowPlaying;
   NowPlaying? get nowPlaying => _nowPlaying;
 
-  Stream<PlayerState> get playerStateStream =>
-      _audioPlayer.onPlayerStateChanged;
-
   Timer? _nowPlayingTimer;
 
-  AudioStateService() {
+  AudioHandlerWithNowPlaying() {
     _init();
   }
 
   void _init() {
-    _audioPlayer.setVolume(volume);
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      _playerState = state;
-      if (state == PlayerState.playing) {
-        statusMessage = 'Reproduciendo';
-      } else if (state == PlayerState.paused) {
-        statusMessage = 'Pausado';
-      } else if (state == PlayerState.stopped) {
-        statusMessage = 'Detenido';
-      } else if (state == PlayerState.completed) {
-        statusMessage = 'Finalizado';
-      }
+    _player.setVolume(volume);
+
+    // Escucha estado de reproducción y actualiza playbackState de audio_service
+    _player.playbackEventStream.listen((event) {
+      final playing = _player.playing;
+      final processingState = event.processingState;
+      playbackState.add(
+        playbackState.value.copyWith(
+          controls: [
+            MediaControl.stop,
+            if (playing) MediaControl.pause else MediaControl.play,
+          ],
+          systemActions: const {
+            MediaAction.seek,
+            MediaAction.pause,
+            MediaAction.play,
+            MediaAction.stop,
+          },
+          playing: playing,
+          processingState: {
+            ProcessingState.idle: AudioProcessingState.idle,
+            ProcessingState.loading: AudioProcessingState.loading,
+            ProcessingState.buffering: AudioProcessingState.buffering,
+            ProcessingState.ready: AudioProcessingState.ready,
+            ProcessingState.completed: AudioProcessingState.completed,
+          }[processingState]!,
+        ),
+      );
+
+      // Actualiza estado local para UI adicional
+      _playerState = playing ? PlayerState.playing : PlayerState.paused;
+      statusMessage = playing ? 'Reproduciendo' : 'Pausado';
+
       notifyListeners();
     });
 
@@ -44,10 +63,9 @@ class AudioStateService extends ChangeNotifier {
   }
 
   void _fetchNowPlayingPeriodically() {
-    // Carga inmediata y actualizaciones periódicas cada 30 segundos
     _updateNowPlaying();
     _nowPlayingTimer = Timer.periodic(
-      Duration(seconds: 30),
+      const Duration(seconds: 30),
       (_) => _updateNowPlaying(),
     );
   }
@@ -60,45 +78,58 @@ class AudioStateService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error actualizando NowPlaying en AudioStateService: $e');
+      debugPrint('Error actualizando NowPlaying: $e');
     }
   }
 
+  Future<void> setUrl(String url) async {
+    final mediaItem = MediaItem(
+      id: url,
+      album: 'Tu emisora',
+      title: 'Emisora Online',
+      artist: 'AzuraCast',
+      artUri: Uri.parse(
+        'https://elcontraste.co/wp-content/uploads/2024/04/Logo-el-contraste-RadioRecurso-1.png',
+      ),
+    );
+
+    this.mediaItem.add(mediaItem);
+
+    await _player.setAudioSource(AudioSource.uri(Uri.parse(url), tag: mediaItem));
+  }
+
+  @override
   Future<void> play() async {
     statusMessage = 'Cargando...';
     notifyListeners();
-
-    try {
-      await _audioPlayer.play(UrlSource(AzuraCastService.streamUrl));
-      // El cambio a 'Reproduciendo' se capturará desde el listener onPlayerStateChanged
-    } catch (e) {
-      statusMessage = 'Error al reproducir';
-      notifyListeners();
-    }
+    await _player.play();
   }
 
+  @override
   Future<void> pause() async {
-    await _audioPlayer.pause();
+    await _player.pause();
     statusMessage = 'Pausado';
     notifyListeners();
   }
 
+  @override
   Future<void> stop() async {
-    await _audioPlayer.stop();
+    await _player.stop();
     statusMessage = 'Detenido';
     notifyListeners();
+    return super.stop();
   }
 
   void setVolume(double newVolume) {
     volume = newVolume;
-    _audioPlayer.setVolume(volume);
+    _player.setVolume(volume);
     notifyListeners();
   }
 
   @override
   void dispose() {
     _nowPlayingTimer?.cancel();
-    _audioPlayer.dispose();
+    _player.dispose();
     super.dispose();
   }
 }

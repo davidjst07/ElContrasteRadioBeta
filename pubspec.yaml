@@ -1,5 +1,5 @@
 name: elcontrasteapp
-description: "A new Flutter project."
+description: "Proyecto Beta de la aplicación de El Contraste"
 publish_to: 'none'
 version: 0.1.0
 
@@ -7,15 +7,17 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
-  audioplayers: ^6.5.1
+  audio_service: ^0.18.18
+  cached_network_image: ^3.4.1
+  connectivity_plus: ^7.0.0
   flutter:
     sdk: flutter
-  provider: ^6.1.5+1
-  connectivity_plus: ^7.0.0
   flutter_dotenv: ^6.0.0
-  http: ^1.5.0
-  cached_network_image: ^3.4.1
   flutter_html: ^3.0.0
+  http: ^1.5.0
+  just_audio: ^0.10.5
+  just_audio_background: ^0.0.1-beta.17
+  provider: ^6.1.5+1
   youtube_player_flutter: ^9.1.2
 
 dev_dependencies:
