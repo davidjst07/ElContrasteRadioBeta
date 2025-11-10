@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
-import 'now_playing_service.dart'; // Tu servicio para obtener metadata externa
+import 'now_playing_service.dart';
 
-class AudioHandlerWithNowPlaying extends BaseAudioHandler {
+class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
   final AudioPlayer _player = AudioPlayer();
 
-  PlayerState _playerState = PlayerState.stopped;
-  PlayerState get playerState => _playerState;
+  bool _isPlaying = false;
+  bool get isPlaying => _isPlaying;
 
   String statusMessage = 'Detenido';
   double volume = 1.0;
@@ -18,17 +18,21 @@ class AudioHandlerWithNowPlaying extends BaseAudioHandler {
 
   Timer? _nowPlayingTimer;
 
-  AudioHandlerWithNowPlaying() {
+  // Constante para el artwork
+  static const String appIcon = 'assets/icon/c_blanca.png';
+
+  RadioPlayerHandler() {
     _init();
+    _setupAudioSource();
   }
 
   void _init() {
     _player.setVolume(volume);
 
-    // Escucha estado de reproducción y actualiza playbackState de audio_service
-    _player.playbackEventStream.listen((event) {
-      final playing = _player.playing;
-      final processingState = event.processingState;
+    _player.playerStateStream.listen((state) {
+      final playing = state.playing;
+      final processingState = state.processingState;
+
       playbackState.add(
         playbackState.value.copyWith(
           controls: [
@@ -42,30 +46,68 @@ class AudioHandlerWithNowPlaying extends BaseAudioHandler {
             MediaAction.stop,
           },
           playing: playing,
-          processingState: {
-            ProcessingState.idle: AudioProcessingState.idle,
-            ProcessingState.loading: AudioProcessingState.loading,
-            ProcessingState.buffering: AudioProcessingState.buffering,
-            ProcessingState.ready: AudioProcessingState.ready,
-            ProcessingState.completed: AudioProcessingState.completed,
-          }[processingState]!,
+          processingState: _mapProcessingState(processingState),
         ),
       );
 
-      // Actualiza estado local para UI adicional
-      _playerState = playing ? PlayerState.playing : PlayerState.paused;
+      _isPlaying = playing;
       statusMessage = playing ? 'Reproduciendo' : 'Pausado';
-
       notifyListeners();
     });
 
     _fetchNowPlayingPeriodically();
   }
 
+  Future<void> _setupAudioSource() async {
+    try {
+      // Configurar el MediaItem inicial
+      final initialMediaItem = MediaItem(
+        id: AzuraCastService.streamUrl,
+        album: 'El Contraste Radio',
+        title: 'El Contraste Radio',
+        artist: 'Cargando...',
+        artUri: Uri.parse(
+          'https://elcontraste.co/wp-content/uploads/2023/01/cropped-c-negra-logo.png',
+        ),
+      );
+
+      this.mediaItem.add(initialMediaItem);
+
+      // Configurar la fuente de audio con la URL del stream
+      await _player.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(AzuraCastService.streamUrl),
+          tag: initialMediaItem,
+        ),
+      );
+
+      print('✅ Fuente de audio configurada: ${AzuraCastService.streamUrl}');
+    } catch (e) {
+      print('❌ Error configurando fuente de audio: $e');
+      statusMessage = 'Error de conexión';
+      notifyListeners();
+    }
+  }
+
+  AudioProcessingState _mapProcessingState(ProcessingState state) {
+    switch (state) {
+      case ProcessingState.idle:
+        return AudioProcessingState.idle;
+      case ProcessingState.loading:
+        return AudioProcessingState.loading;
+      case ProcessingState.buffering:
+        return AudioProcessingState.buffering;
+      case ProcessingState.ready:
+        return AudioProcessingState.ready;
+      case ProcessingState.completed:
+        return AudioProcessingState.completed;
+    }
+  }
+
   void _fetchNowPlayingPeriodically() {
     _updateNowPlaying();
     _nowPlayingTimer = Timer.periodic(
-      const Duration(seconds: 30),
+      const Duration(seconds: 15),
       (_) => _updateNowPlaying(),
     );
   }
@@ -75,6 +117,23 @@ class AudioHandlerWithNowPlaying extends BaseAudioHandler {
       final data = await NowPlayingService.getNowPlaying();
       if (data != null) {
         _nowPlaying = data;
+
+        // Actualizar el MediaItem con la información de AzuraCast
+        final updatedMediaItem = MediaItem(
+          id: AzuraCastService.streamUrl,
+          album: 'El Contraste Radio',
+          title: data.title != 'Sin información'
+              ? data.title
+              : 'El Contraste Radio',
+          artist: data.artist != 'Artista desconocido'
+              ? data.artist
+              : 'En Vivo',
+          artUri: Uri.parse(
+            'https://elcontraste.co/wp-content/uploads/2023/01/cropped-c-negra-logo.png',
+          ), // Imagen local
+        );
+
+        this.mediaItem.add(updatedMediaItem);
         notifyListeners();
       }
     } catch (e) {
@@ -82,12 +141,12 @@ class AudioHandlerWithNowPlaying extends BaseAudioHandler {
     }
   }
 
-  Future<void> setUrl(String url) async {
+  /*Future<void> setUrl(String url) async {
     final mediaItem = MediaItem(
       id: url,
-      album: 'Tu emisora',
+      album: 'El Contraste Radio',
       title: 'Emisora Online',
-      artist: 'AzuraCast',
+      artist: 'El Contraste',
       artUri: Uri.parse(
         'https://elcontraste.co/wp-content/uploads/2024/04/Logo-el-contraste-RadioRecurso-1.png',
       ),
@@ -95,28 +154,67 @@ class AudioHandlerWithNowPlaying extends BaseAudioHandler {
 
     this.mediaItem.add(mediaItem);
 
-    await _player.setAudioSource(AudioSource.uri(Uri.parse(url), tag: mediaItem));
-  }
+    // Usa JustAudioBackground para mostrar los controles del sistema
+    await _player.setAudioSource(
+      AudioSource.uri(
+        Uri.parse(url),
+        tag: MediaItem(
+          id: url,
+          album: 'El Contraste Radio',
+          title: 'Emisora Online',
+          artist: 'El Contraste',
+          artUri: Uri.parse(
+            'https://elcontraste.co/wp-content/uploads/2024/04/Logo-el-contraste-RadioRecurso-1.png',
+          ),
+        ),
+      ),
+    );
+  }*/
+
+  Stream<PlayerState> get playerStateStream => _player.playerStateStream;
+  PlayerState get playerState => _player.playerState;
 
   @override
   Future<void> play() async {
-    statusMessage = 'Cargando...';
-    notifyListeners();
-    await _player.play();
+    try {
+      statusMessage = 'Conectando...';
+      notifyListeners();
+
+      // Verificar si ya tenemos la fuente configurada
+      if (_player.audioSource == null) {
+        await _setupAudioSource();
+      }
+
+      await _player.play();
+      statusMessage = 'Reproduciendo';
+      notifyListeners();
+    } catch (e) {
+      statusMessage = 'Error al conectar';
+      notifyListeners();
+      print('Error al reproducir: $e');
+    }
   }
 
   @override
   Future<void> pause() async {
-    await _player.pause();
-    statusMessage = 'Pausado';
-    notifyListeners();
+    try {
+      await _player.pause();
+      statusMessage = 'Pausado';
+      notifyListeners();
+    } catch (e) {
+      print('Error al pausar: $e');
+    }
   }
 
   @override
   Future<void> stop() async {
-    await _player.stop();
-    statusMessage = 'Detenido';
-    notifyListeners();
+    try {
+      await _player.stop();
+      statusMessage = 'Detenido';
+      notifyListeners();
+    } catch (e) {
+      print('Error al detener: $e');
+    }
     return super.stop();
   }
 

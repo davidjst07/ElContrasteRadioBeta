@@ -450,51 +450,176 @@ class _NewsCard extends StatelessWidget {
         );
       },
       child: Card(
-        color: const Color.fromARGB(
-          255,
-          13,
-          42,
-          78,
-        ), // <-- AÑADE ESTA LÍNEA PARA CAMBIAR EL COLOR
+        color: const Color.fromARGB(255, 13, 42, 78),
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         elevation: 5,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (post.featuredImageUrl != null)
-              Hero(
-                tag: 'news_image_${post.id}',
-                child: CachedNetworkImage(
-                  imageUrl: post.featuredImageUrl!,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    height: 180,
-                    color: const Color.fromARGB(255, 32, 24, 104),
-                    child: const Center(child: CircularProgressIndicator()),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 450, maxHeight: 600),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Imagen completa
+                if (post.featuredImageUrl != null)
+                  Hero(
+                    tag: 'news_image_${post.id}',
+                    child: CachedNetworkImage(
+                      imageUrl: post.featuredImageUrl!,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: 200,
+                        color: const Color.fromARGB(255, 32, 24, 104),
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.image_not_supported, size: 50),
+                    ),
                   ),
-                  errorWidget: (context, url, error) =>
-                      const Icon(Icons.image_not_supported, size: 50),
-                ),
-              ),
-            const Expanded(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12.0),
-                  child: Text(
-                    "Leer más",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+
+                // Contenido completo de la noticia
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Título
+                      Text(
+                        post.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // ✅ FECHA - AHORA FUNCIONA
+                      if (post.date != null)
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: Colors.white70,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _formatDate(post.date!),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                      if (post.date != null) const SizedBox(height: 12),
+
+                      // Extracto o contenido resumido
+                      if (post.excerpt.isNotEmpty)
+                        Text(
+                          _cleanHtml(post.excerpt),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      else if (post.content.isNotEmpty)
+                        Text(
+                          _cleanHtml(post.content),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+
+                      const SizedBox(height: 16),
+
+                      // Botón "Leer más" siempre visible
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[800]!.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blue[300]!),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Leer noticia completa",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+                    ],
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  // ✅ MÉTODO PARA FORMATEAR LA FECHA
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    // Si es hoy
+    if (difference.inDays == 0) {
+      return 'Hoy';
+    }
+    // Si es ayer
+    else if (difference.inDays == 1) {
+      return 'Ayer';
+    }
+    // Si es esta semana
+    else if (difference.inDays < 7) {
+      return 'Hace ${difference.inDays} días';
+    }
+    // Formato normal
+    else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  String _cleanHtml(String html) {
+    return html
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll(RegExp(r'&[^;]+;'), '')
+        .trim();
   }
 }
 
@@ -579,14 +704,19 @@ class _VideosWidgetState extends State<_VideosWidget> {
                       ),
                     Padding(
                       padding: const EdgeInsets.all(12.0),
-                      child: Text(
-                        video.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            video.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
                   ],

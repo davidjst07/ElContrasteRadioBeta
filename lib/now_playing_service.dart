@@ -11,18 +11,21 @@ class NowPlayingService {
 
   static Future<NowPlaying?> getNowPlaying() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/nowplaying'),
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'ElContrasteRadioApp/1.0',
-        },
-      ).timeout(Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/nowplaying'),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'ElContrasteRadioApp/1.0',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
+        final Map<String, dynamic> json = jsonDecode(response.body);
         return NowPlaying.fromJson(json);
       } else {
+        // Puedes loguear más info aquí si lo deseas
         print('Error: Código de estado ${response.statusCode}');
         return null;
       }
@@ -37,54 +40,87 @@ class NowPlayingService {
 }
 
 class NowPlaying {
-  final String? nowPlayingTitle;
-  final String? nowPlayingArtist;
-  final String? nowPlayingAlbum;
+  // Campos renombrados a nombres cortos y usados por la UI
+  final String title;
+  final String artist;
+  final String? album;
   final int listeners;
   final int uniqueListeners;
-  final String? playlistName;
+  final String playlistName;
   final int elapsedSeconds;
   final int durationSeconds;
   final String? albumArtUrl;
 
   NowPlaying({
-    this.nowPlayingTitle,
-    this.nowPlayingArtist,
-    this.nowPlayingAlbum,
+    required this.title,
+    required this.artist,
+    this.album,
     required this.listeners,
     required this.uniqueListeners,
-    this.playlistName,
+    required this.playlistName,
     required this.elapsedSeconds,
     required this.durationSeconds,
     this.albumArtUrl,
   });
 
   factory NowPlaying.fromJson(Map<String, dynamic> json) {
-    final nowPlaying = json['now_playing'] ?? {};
-    final song = nowPlaying['song'] ?? {};
-    final links = song['links'] ?? {};
+    // Estructura típica de AzuraCast: { "now_playing": { "song": { ... }, "elapsed": .., "duration": .. }, "listeners": { "current": .., "unique": .. } }
+    final Map<String, dynamic> nowPlaying = (json['now_playing'] is Map)
+        ? json['now_playing'] as Map<String, dynamic>
+        : {};
+    final Map<String, dynamic> song = (nowPlaying['song'] is Map)
+        ? nowPlaying['song'] as Map<String, dynamic>
+        : {};
+    final Map<String, dynamic> links = (song['links'] is Map)
+        ? song['links'] as Map<String, dynamic>
+        : {};
+
+    final String title =
+        (song['title'] as String?)?.trim() ?? 'Sin información';
+    final String artist =
+        (song['artist'] as String?)?.trim() ?? 'Artista desconocido';
+    final String? album = (song['album'] as String?)?.trim();
+
+    final int listeners = (json['listeners'] is Map)
+        ? (json['listeners']['current'] as int? ?? 0)
+        : 0;
+    final int uniqueListeners = (json['listeners'] is Map)
+        ? (json['listeners']['unique'] as int? ?? 0)
+        : 0;
+
+    final String playlistName =
+        (nowPlaying['playlist'] as String?)?.trim() ?? 'AutoDJ';
+
+    final int elapsed = (nowPlaying['elapsed'] is int)
+        ? nowPlaying['elapsed'] as int
+        : int.tryParse('${nowPlaying['elapsed']}') ?? 0;
+    final int duration = (nowPlaying['duration'] is int)
+        ? nowPlaying['duration'] as int
+        : int.tryParse('${nowPlaying['duration']}') ?? 0;
+
+    final String? albumArt = (links['art'] as String?)?.trim();
 
     return NowPlaying(
-      nowPlayingTitle: song['title'] ?? 'Sin información',
-      nowPlayingArtist: song['artist'] ?? 'Artista desconocido',
-      nowPlayingAlbum: song['album'],
-      listeners: json['listeners']?['current'] ?? 0,
-      uniqueListeners: json['listeners']?['unique'] ?? 0,
-      playlistName: nowPlaying['playlist'] ?? 'AutoDJ',
-      elapsedSeconds: nowPlaying['elapsed'] ?? 0,
-      durationSeconds: nowPlaying['duration'] ?? 0,
-      albumArtUrl: links['art'],
+      title: title,
+      artist: artist,
+      album: album,
+      listeners: listeners,
+      uniqueListeners: uniqueListeners,
+      playlistName: playlistName,
+      elapsedSeconds: elapsed,
+      durationSeconds: duration,
+      albumArtUrl: albumArt,
     );
   }
 
   double getProgress() {
-    if (durationSeconds == 0) return 0;
+    if (durationSeconds == 0) return 0.0;
     return (elapsedSeconds / durationSeconds).clamp(0.0, 1.0);
   }
 
   String getRemainingTime() {
     final remaining = durationSeconds - elapsedSeconds;
-    if (remaining < 0) return '0:00';
+    if (remaining <= 0) return '0:00';
     final minutes = remaining ~/ 60;
     final seconds = remaining % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
@@ -121,15 +157,19 @@ class StationInfo {
   });
 
   factory StationInfo.fromJson(Map<String, dynamic> json) {
-    final links = json['links'] ?? {};
+    final Map<String, dynamic> links = (json['links'] is Map)
+        ? json['links'] as Map<String, dynamic>
+        : {};
 
     return StationInfo(
-      name: json['name'] ?? 'Sin nombre',
-      description: json['description'] ?? '',
-      genre: json['genre'] ?? 'Variado',
-      url: json['url'] ?? '',
-      listeners: json['listeners']?['current'] ?? 0,
-      iconUrl: links['icon'],
+      name: (json['name'] as String?)?.trim() ?? 'Sin nombre',
+      description: (json['description'] as String?)?.trim() ?? '',
+      genre: (json['genre'] as String?)?.trim() ?? 'Variado',
+      url: (json['url'] as String?)?.trim() ?? '',
+      listeners: (json['listeners'] is Map)
+          ? (json['listeners']['current'] as int? ?? 0)
+          : 0,
+      iconUrl: (links['icon'] as String?)?.trim(),
     );
   }
 }

@@ -6,6 +6,7 @@ class Post {
   final String excerpt;
   final String content;
   final String? featuredImageUrl;
+  final DateTime? date;
 
   Post({
     required this.id,
@@ -13,6 +14,7 @@ class Post {
     required this.excerpt,
     required this.content,
     this.featuredImageUrl,
+    this.date,
   });
 
   // El factory constructor nos permite crear una instancia de Post
@@ -33,6 +35,20 @@ class Post {
       RegExp(r'<[^>]*>'),
       '',
     );
+
+    // ✅ PROCESAMIENTO DE LA FECHA
+    DateTime? postDate;
+    try {
+      if (json['date'] != null) {
+        postDate = DateTime.parse(json['date']);
+      } else if (json['modified'] != null) {
+        // Si no hay fecha de publicación, usamos la fecha de modificación
+        postDate = DateTime.parse(json['modified']);
+      }
+    } catch (e) {
+      print('Error parsing date: $e');
+      postDate = null;
+    }
 
     return Post(
       id: json['id'],
