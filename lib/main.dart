@@ -24,6 +24,7 @@ Future<void> main() async {
       preloadArtwork: true,
       // Color negro para la notificación
     ),
+    
   );
 
   //final audioHandler = await initAudioHandler();

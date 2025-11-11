@@ -5,6 +5,7 @@ import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
 import 'package:elcontrasteapp/presentation/pages/home/video_model.dart';
 import 'package:elcontrasteapp/presentation/pages/home/video_player_page.dart';
 import 'package:elcontrasteapp/presentation/pages/home/youtube_service.dart';
+import 'package:elcontrasteapp/presentation/widgets/menu_app.dart';
 import 'package:elcontrasteapp/presentation/widgets/radio_player_widget.dart';
 
 import 'package:flutter/material.dart';
@@ -42,13 +43,14 @@ class _HomePageState extends State<HomePage> {
     // Inicializamos la lista con nulls. El tamaño debe coincidir con el número de pestañas.
     _tabWidgets = List<Widget?>.filled(_tabs.length, null);
     // Creamos el widget de la primera pestaña (Radio) ya que es la inicial.
-    _tabWidgets[0] = const _ProgrammingWidget();
+    _tabWidgets[0] = const SimpleScheduleWidget();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text('El Contraste Noticias'),
         actions: [
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -65,6 +67,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 8),
         ],
       ),
+      drawer: const MenuApp(),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -162,7 +165,7 @@ class _HomePageState extends State<HomePage> {
       case 2:
         return const _VideosWidget();
       default: // case 0 y cualquier otro caso
-        return const _ProgrammingWidget();
+        return const SimpleScheduleWidget();
     }
   }
 }
@@ -730,53 +733,127 @@ class _VideosWidgetState extends State<_VideosWidget> {
   }
 }
 
-class _ProgrammingWidget extends StatelessWidget {
-  const _ProgrammingWidget();
+class SimpleScheduleWidget extends StatelessWidget {
+  const SimpleScheduleWidget({Key? key}) : super(key: key);
+
+  final List<_ScheduleItem> schedule = const [
+    _ScheduleItem(
+      time: '6:00 a.m. – 9:00 a.m.',
+      program: 'El Contraste Noticias',
+      description:
+          'Noticiero de lunes a viernes con los hechos más importantes de Pasto, Nariño y Colombia transmitido en VIVO',
+    ),
+    _ScheduleItem(
+      time: '9:00 a.m. – 12:00 p.m.',
+      program: 'Rock del Día',
+      description: 'Rock en español clásico y moderno.',
+    ),
+    _ScheduleItem(
+      time: '12:00 p.m. – 2:00 p.m.',
+      program: 'Salsa y Sabor',
+      description: 'Salsa clásica y moderna.',
+    ),
+    _ScheduleItem(
+      time: '2:00 p.m. – 5:00 p.m.',
+      program: 'Rock Alternativo y Latino',
+      description: 'Mezcla de géneros.',
+    ),
+    _ScheduleItem(
+      time: '5:00 p.m. – 9:00 p.m.',
+      program: 'Hecho en Colombia',
+      description: 'Artistas nacionales y locales.',
+    ),
+    _ScheduleItem(
+      time: '9:00 p.m. – 5:00 a.m.',
+      program: 'Cristiana Alabanza y adoración',
+      description: '',
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Programación',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            color: const Color.fromARGB(255, 42, 76, 156),
-            child: ListTile(
-              leading: const Icon(Icons.person, color: Colors.greenAccent),
-              title: const Text(
-                'DJ Carlos',
-                style: TextStyle(color: Colors.white),
-              ),
-              subtitle: const Text('Éxitos de los 80s y 90s'),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'EN VIVO',
-                  style: TextStyle(color: Colors.white),
+    return Card(
+      color: const Color.fromARGB(255, 13, 42, 78),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6, // 🔹 Altura visible
+          child: ListView(
+            physics: const BouncingScrollPhysics(),
+            children: [
+              const Text(
+                'Programación',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
+              const SizedBox(height: 12),
+              ...schedule.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _ScheduleTile(item: item),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Próximo: 18:00',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const Text('Música Tropical con DJ María'),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _ScheduleItem {
+  final String time;
+  final String program;
+  final String description;
+
+  const _ScheduleItem({
+    required this.time,
+    required this.program,
+    this.description = '',
+  });
+}
+
+class _ScheduleTile extends StatelessWidget {
+  final _ScheduleItem item;
+
+  const _ScheduleTile({Key? key, required this.item}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = Colors.white;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          item.time,
+          style: TextStyle(
+            color: Colors.blue[300],
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          item.program,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        if (item.description.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            item.description,
+            style: TextStyle(color: textColor.withOpacity(0.75), fontSize: 14),
+          ),
+        ],
+      ],
     );
   }
 }

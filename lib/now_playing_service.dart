@@ -37,6 +37,47 @@ class NowPlayingService {
       return null;
     }
   }
+
+  // NUEVO: Obtener la cola de próximas canciones (lista del AutoDJ)
+  static Future<List<PlaylistSong>> getUpcomingSongs() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/queue'),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'ElContrasteRadioApp/1.0',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = jsonDecode(response.body);
+
+        return jsonList.map((item) {
+          final songJson = item['song'] ?? {};
+          final duration = item['duration'] ?? 0;
+
+          return PlaylistSong(
+            title: (songJson['title'] as String?)?.trim() ?? 'Desconocido',
+            artist: (songJson['artist'] as String?)?.trim() ?? 'Desconocido',
+            duration: duration is int
+                ? duration
+                : int.tryParse('$duration') ?? 0,
+          );
+        }).toList();
+      } else {
+        print('Error: Código de estado ${response.statusCode}');
+        return [];
+      }
+    } on TimeoutException catch (_) {
+      print('Timeout al obtener la cola de canciones');
+      return [];
+    } catch (e) {
+      print('Error obteniendo la cola de canciones: $e');
+      return [];
+    }
+  }
 }
 
 class NowPlaying {
@@ -136,6 +177,28 @@ class NowPlaying {
     final minutes = durationSeconds ~/ 60;
     final seconds = durationSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
+class PlaylistSong {
+  final String title;
+  final String artist;
+  final int duration;
+
+  PlaylistSong({
+    required this.title,
+    required this.artist,
+    required this.duration,
+  });
+
+  factory PlaylistSong.fromJson(Map<String, dynamic> json) {
+    return PlaylistSong(
+      title: (json['title'] as String?)?.trim() ?? 'Desconocido',
+      artist: (json['artist'] as String?)?.trim() ?? 'Desconocido',
+      duration: json['duration'] is int
+          ? json['duration'] as int
+          : int.tryParse('${json['duration']}') ?? 0,
+    );
   }
 }
 

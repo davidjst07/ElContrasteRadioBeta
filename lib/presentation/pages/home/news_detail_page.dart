@@ -29,15 +29,14 @@ class NewsDetailPage extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-            Padding(
+            /*Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
                 "Leer más",
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
-              ),
-            ),
+              */
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Html(

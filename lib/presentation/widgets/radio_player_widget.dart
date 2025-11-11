@@ -6,10 +6,7 @@ import 'package:elcontrasteapp/audio_state_service.dart';
 class RadioPlayerWidget extends StatelessWidget {
   final bool isCompact;
 
-  const RadioPlayerWidget({
-    super.key,
-    this.isCompact = false,
-  });
+  const RadioPlayerWidget({super.key, this.isCompact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +44,7 @@ class RadioPlayerWidget extends StatelessWidget {
               },
             ),
             if (!isCompact) ...[
-              const SizedBox(height: 8),
+              /*const SizedBox(height: 8),
               Text(
                 audioService.statusMessage,
                 style: const TextStyle(color: Colors.white70),
@@ -69,7 +66,7 @@ class RadioPlayerWidget extends StatelessWidget {
                   ),
                   const Icon(Icons.volume_up, color: Colors.white70),
                 ],
-              ),
+              ),*/
               const SizedBox(height: 8),
               if (audioService.nowPlaying != null)
                 Column(
