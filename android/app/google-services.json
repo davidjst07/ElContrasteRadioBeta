@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "183914466069",
+    "project_id": "elcontrastenoticiasapp",
+    "storage_bucket": "elcontrastenoticiasapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183914466069:android:634e4660968672f6a3371c",
+        "android_client_info": {
+          "package_name": "co.davidsanchez.elcontrasteapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAR8j9N1oWOJ-MmFM_k67O-nQJXlh8f79M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183914466069:android:cfc1e9344f63b344a3371c",
+        "android_client_info": {
+          "package_name": "com.davidsanchez.elcontrastenoticiasapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAR8j9N1oWOJ-MmFM_k67O-nQJXlh8f79M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

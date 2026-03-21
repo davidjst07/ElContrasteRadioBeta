@@ -1,4 +1,7 @@
+import 'package:elcontrasteapp/presentation/blocs/notifications/notifications_bloc.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -6,10 +9,11 @@ class MenuApp extends StatelessWidget {
   const MenuApp({super.key});
 
   Future<void> _launchURL(String url, BuildContext context) async {
-    if (!context.mounted) return; // Verifica si el widget sigue montado
+    if (!context.mounted) return;
 
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       debugPrint('No se pudo abrir $url');
     }
@@ -28,16 +32,8 @@ class MenuApp extends StatelessWidget {
               style: TextStyle(color: Colors.white, fontSize: 24),
             ),
           ),
-          /*ListTile(
-            leading: const Icon(Icons.home),
-            title: const Text('Inicio'),
-            onTap: () {
-              Navigator.pop(context); // Cierra el Drawer
-              if (ModalRoute.of(context)?.settings.name != '/') {
-                Navigator.pushReplacementNamed(context, '/'); // Navega solo si no estás en la pantalla de inicio
-              }
-            },
-          ),*/
+
+          // ----- Redes sociales -----
           ExpansionTile(
             leading: const Icon(Icons.link),
             title: const Text('Síguenos'),
@@ -51,6 +47,7 @@ class MenuApp extends StatelessWidget {
                   final fbAppUrl = 'fb://page/$fbPageId';
                   final fbWebUrl =
                       'https://www.facebook.com/ElContrasteNoticias';
+
                   if (await canLaunchUrl(Uri.parse(fbAppUrl))) {
                     await launchUrl(
                       Uri.parse(fbAppUrl),
@@ -65,16 +62,14 @@ class MenuApp extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const FaIcon(
-                  FontAwesomeIcons.xTwitter,
-                  //color: Colors.blue,
-                ),
+                leading: const FaIcon(FontAwesomeIcons.xTwitter),
                 title: const Text('Twitter'),
                 onTap: () async {
                   Navigator.pop(context);
                   const twitterAppUrl =
                       'twitter://user?screen_name=elcontrastenoti';
                   const twitterWebUrl = 'https://x.com/elcontrastenoti';
+
                   if (await canLaunchUrl(Uri.parse(twitterAppUrl))) {
                     await launchUrl(
                       Uri.parse(twitterAppUrl),
@@ -136,6 +131,8 @@ class MenuApp extends StatelessWidget {
               ),
             ],
           ),
+
+          // ----- Contacto -----
           ListTile(
             leading: const FaIcon(
               FontAwesomeIcons.whatsapp,
@@ -144,7 +141,7 @@ class MenuApp extends StatelessWidget {
             title: const Text('Contáctanos'),
             onTap: () async {
               Navigator.pop(context);
-              const phone = '3136902821'; // Número de WhatsApp
+              const phone = '3136902821';
               const whatsappUrl = 'https://wa.me/$phone';
               if (await canLaunchUrl(Uri.parse(whatsappUrl))) {
                 await launchUrl(
@@ -167,13 +164,99 @@ class MenuApp extends StatelessWidget {
               _launchURL('mailto:info@elcontraste.co', context);
             },
           ),
-
           ListTile(
             leading: const FaIcon(FontAwesomeIcons.globe, color: Colors.blue),
             title: const Text('elcontraste.co'),
             onTap: () {
               Navigator.pop(context);
               _launchURL('https://www.elcontraste.co', context);
+            },
+          ),
+
+          const Divider(),
+
+          // ----- Estado de notificaciones (permiso) -----
+          BlocBuilder<NotificationsBloc, NotificationsState>(
+            builder: (context, state) {
+              final isGranted = state.status == AuthorizationStatus.authorized;
+
+              return ListTile(
+                leading: const Icon(Icons.settings, color: Colors.grey),
+                title: const Text('Notificaciones'),
+                subtitle: Text(
+                  isGranted ? 'Estado: permitidas' : 'Estado: no permitidas',
+                ),
+                trailing: IconButton(
+                  icon: Icon(
+                    isGranted
+                        ? Icons.notifications_active
+                        : Icons.notifications_off,
+                    color: isGranted ? Colors.green : Colors.red,
+                  ),
+                  onPressed: () {
+                    context.read<NotificationsBloc>().requestPermission();
+                  },
+                ),
+              );
+            },
+          ),
+
+          // ----- Últimas notificaciones -----
+          BlocBuilder<NotificationsBloc, NotificationsState>(
+            builder: (context, state) {
+              final notifications = state.notifications;
+
+              if (notifications.isEmpty) {
+                return const ListTile(
+                  leading: Icon(Icons.notifications_none),
+                  title: Text('Sin notificaciones recientes'),
+                );
+              }
+
+              final lastNotifications = notifications.reversed.take(3).toList();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'Últimas notificaciones',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  ...lastNotifications.map((n) {
+                    return ListTile(
+                      leading: n.imageUrl != null && n.imageUrl!.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                n.imageUrl!,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : const Icon(Icons.notifications, color: Colors.grey),
+                      title: Text(
+                        n.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: n.body.isNotEmpty
+                          ? Text(
+                              n.body,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            )
+                          : null,
+                    );
+                  }).toList(),
+                ],
+              );
             },
           ),
         ],

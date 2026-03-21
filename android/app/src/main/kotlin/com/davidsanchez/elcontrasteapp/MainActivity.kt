@@ -1,4 +1,4 @@
-package com.example.elcontrasteapp
+package co.davidsanchez.elcontrasteapp
 
 import com.ryanheise.audioservice.AudioServiceActivity
 import android.content.Intent

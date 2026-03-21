@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:elcontrasteapp/presentation/blocs/notifications/notifications_bloc.dart';
 import 'package:elcontrasteapp/presentation/pages/home/post_model.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_service.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
@@ -9,6 +10,7 @@ import 'package:elcontrasteapp/presentation/widgets/menu_app.dart';
 import 'package:elcontrasteapp/presentation/widgets/radio_player_widget.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -765,7 +767,7 @@ class SimpleScheduleWidget extends StatelessWidget {
     ),
     _ScheduleItem(
       time: '9:00 p.m. – 5:00 a.m.',
-      program: 'Cristiana Alabanza y adoración',
+      program: 'Cristiana Alabanza y Adoración',
       description: '',
     ),
   ];
@@ -779,7 +781,7 @@ class SimpleScheduleWidget extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6, // 🔹 Altura visible
+          height: MediaQuery.of(context).size.height * 0.6,
           child: ListView(
             physics: const BouncingScrollPhysics(),
             children: [
@@ -791,7 +793,7 @@ class SimpleScheduleWidget extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               ...schedule.map(
                 (item) => Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -820,40 +822,48 @@ class _ScheduleItem {
 
 class _ScheduleTile extends StatelessWidget {
   final _ScheduleItem item;
+  final Widget? leading; // opcional
 
-  const _ScheduleTile({Key? key, required this.item}) : super(key: key);
+  const _ScheduleTile({Key? key, required this.item, this.leading})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final textColor = Colors.white;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          item.time,
-          style: TextStyle(
-            color: Colors.blue[300],
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: leading,
+      title: Text(
+        item.program,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
-        const SizedBox(height: 4),
-        Text(
-          item.program,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        if (item.description.isNotEmpty) ...[
-          const SizedBox(height: 2),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            item.description,
-            style: TextStyle(color: textColor.withOpacity(0.75), fontSize: 14),
+            item.time,
+            style: TextStyle(
+              color: Colors.blue[300],
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
+          if (item.description.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              item.description,
+              style: TextStyle(
+                color: textColor.withOpacity(0.75),
+                fontSize: 14,
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
