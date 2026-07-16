@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "183914466069",
-    "project_id": "elcontrastenoticiasapp",
-    "storage_bucket": "elcontrastenoticiasapp.firebasestorage.app"
+    "project_number": "146644960889",
+    "project_id": "elcontrastenoticias-f0ac1",
+    "storage_bucket": "elcontrastenoticias-f0ac1.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:183914466069:android:634e4660968672f6a3371c",
+        "mobilesdk_app_id": "1:146644960889:android:377184b2db0078a3ce76a8",
         "android_client_info": {
-          "package_name": "co.davidsanchez.elcontrasteapp"
+          "package_name": "com.davidsanchez.elcontrastenoticias"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAR8j9N1oWOJ-MmFM_k67O-nQJXlh8f79M"
+          "current_key": "AIzaSyDLmsYbedCQkAPIzo0Vrbvnfa1M9z86Qzg"
         }
       ],
       "services": {
@@ -26,7 +26,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:183914466069:android:cfc1e9344f63b344a3371c",
+        "mobilesdk_app_id": "1:146644960889:android:9e487ba1b2e39ca8ce76a8",
         "android_client_info": {
           "package_name": "com.davidsanchez.elcontrastenoticiasapp"
         }
@@ -34,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAR8j9N1oWOJ-MmFM_k67O-nQJXlh8f79M"
+          "current_key": "AIzaSyDLmsYbedCQkAPIzo0Vrbvnfa1M9z86Qzg"
         }
       ],
       "services": {

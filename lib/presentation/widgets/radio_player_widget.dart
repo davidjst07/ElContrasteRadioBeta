@@ -8,6 +8,79 @@ class RadioPlayerWidget extends StatelessWidget {
 
   const RadioPlayerWidget({super.key, this.isCompact = false});
 
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildProgressBar(RadioPlayerHandler audioService) {
+    return StreamBuilder<Duration?>(
+      stream: audioService.durationStream,
+      builder: (context, durationSnapshot) {
+        final duration = durationSnapshot.data ?? audioService.duration;
+
+        if (duration == null || duration.inSeconds <= 0) {
+          return const SizedBox.shrink();
+        }
+
+        return StreamBuilder<Duration>(
+          stream: audioService.positionStream,
+          builder: (context, positionSnapshot) {
+            final position = positionSnapshot.data ?? audioService.position;
+            final safePosition = position > duration ? duration : position;
+
+            return Column(
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: Colors.white,
+                    inactiveTrackColor: Colors.white.withValues(alpha: 0.35),
+                    thumbColor: Colors.white,
+                    overlayColor: Colors.white.withValues(alpha: 0.18),
+                    trackHeight: 4,
+                  ),
+                  child: Slider(
+                    value: safePosition.inMilliseconds.toDouble(),
+                    min: 0,
+                    max: duration.inMilliseconds.toDouble(),
+                    onChanged: (value) {
+                      audioService.seekTo(
+                        Duration(milliseconds: value.round()),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _formatDuration(safePosition),
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      Text(
+                        _formatDuration(duration),
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<RadioPlayerHandler>(
@@ -44,43 +117,25 @@ class RadioPlayerWidget extends StatelessWidget {
               },
             ),
             if (!isCompact) ...[
-              /*const SizedBox(height: 8),
-              Text(
-                audioService.statusMessage,
-                style: const TextStyle(color: Colors.white70),
-              ),
               const SizedBox(height: 8),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              _buildProgressBar(audioService),
+              const SizedBox(height: 8),
+              Column(
                 children: [
-                  const Icon(Icons.volume_down, color: Colors.white70),
-                  Flexible(
-                    child: Slider(
-                      value: audioService.volume,
-                      onChanged: audioService.setVolume,
-                      min: 0.0,
-                      max: 1.0,
-                      activeColor: Colors.white,
-                      inactiveColor: Colors.white30,
-                    ),
+                  Text(
+                    audioService.isPlayingEmission
+                        ? 'Emision guardada: ${audioService.currentTitle}'
+                        : 'Reproduciendo: ${audioService.currentTitle}',
+                    style: const TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
                   ),
-                  const Icon(Icons.volume_up, color: Colors.white70),
+                  Text(
+                    audioService.currentSubtitle,
+                    style: const TextStyle(color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
-              ),*/
-              const SizedBox(height: 8),
-              if (audioService.nowPlaying != null)
-                Column(
-                  children: [
-                    Text(
-                      'Reproduciendo: ${audioService.nowPlaying?.title ?? 'N/A'}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    Text(
-                      'Artista: ${audioService.nowPlaying?.artist ?? 'N/A'}',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
+              ),
             ],
           ],
         );

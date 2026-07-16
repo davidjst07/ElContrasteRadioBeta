@@ -19,12 +19,12 @@ class PushMessage {
   String toString() {
     return '''
 PushMessage -
-$messageId, $messageId
+id: $messageId,
 title: $title, 
 body: $body, 
 sentDate: $sentDate, 
 data: $data, 
 imageUrl: $imageUrl}
-''';
+'''; 
   }
 }

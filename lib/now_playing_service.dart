@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 class AzuraCastService {
   static const String streamUrl = 'https://radio.elcontraste.co/listen/el_contraste_radio/radio.mp3';
@@ -32,14 +33,14 @@ class NowPlayingService {
 
         return NowPlaying.fromJson(stationData);
       } else {
-        print('Error: Código de estado ${response.statusCode}');
+        debugPrint('Error: Código de estado ${response.statusCode}');
         return null;
       }
     } on TimeoutException catch (_) {
-      print('Timeout al conectar con la API');
+      debugPrint('Timeout al conectar con la API');
       return null;
     } catch (e) {
-      print('Error obteniendo now playing: $e');
+      debugPrint('Error obteniendo now playing: $e');
       return null;
     }
   }
@@ -47,15 +48,16 @@ class NowPlayingService {
   // Cola de próximas canciones (opcional, corregido)
   static Future<List<PlaylistSong>> getUpcomingSongs() async {
     try {
-      // Usa la misma URL base, la cola viene en playing_next y song_history
-      final nowPlaying = await getNowPlaying();
-      if (nowPlaying == null) return [];
-
-      // Extrae próximas canciones del JSON
-      final response = await http.get(Uri.parse(_baseUrl));
+      final response = await http.get(
+        Uri.parse(_baseUrl),
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'ElContrasteRadioApp/1.0',
+        },
+      );
       if (response.statusCode == 200) {
         final dynamic json = jsonDecode(response.body);
-        final Map<String, dynamic> stationData = (json is List && json.isNotEmpty) 
+        final Map<String, dynamic> stationData = (json is List && json.isNotEmpty)
             ? json.first as Map<String, dynamic>
             : json as Map<String, dynamic>;
 
@@ -64,7 +66,7 @@ class NowPlayingService {
       }
       return [];
     } catch (e) {
-      print('Error obteniendo cola: $e');
+      debugPrint('Error obteniendo cola: $e');
       return [];
     }
   }

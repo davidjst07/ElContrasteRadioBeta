@@ -1,16 +1,18 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:elcontrasteapp/presentation/blocs/notifications/notifications_bloc.dart';
-import 'package:elcontrasteapp/presentation/pages/home/post_model.dart';
-import 'package:elcontrasteapp/presentation/pages/home/news_service.dart';
+import 'package:elcontrasteapp/core/themes/app_theme.dart';
+import 'package:elcontrasteapp/data/models/post_model.dart';
+import 'package:elcontrasteapp/data/services/news_service.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
 import 'package:elcontrasteapp/presentation/pages/home/video_model.dart';
 import 'package:elcontrasteapp/presentation/pages/home/video_player_page.dart';
 import 'package:elcontrasteapp/presentation/pages/home/youtube_service.dart';
 import 'package:elcontrasteapp/presentation/widgets/menu_app.dart';
 import 'package:elcontrasteapp/presentation/widgets/radio_player_widget.dart';
+import 'package:elcontrasteapp/audio_state_service.dart';
+import 'package:elcontrasteapp/emissions_service.dart';
+import 'package:provider/provider.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,28 +25,20 @@ class _HomePageState extends State<HomePage> {
   int _selectedTabIndex = 0;
   final List<String> _tabs = ["Radio", "Noticias", "Videos"];
 
-  // Definimos las categorías de noticias con sus respectivos IDs de WordPress
   final Map<String, int?> _newsCategories = {
-    'Últimas': null, // null para obtener todas las noticias
-    // NOTA: Los IDs 10 (Pasto) y 11 (Nariño) parecen tener un problema en el servidor de 'elcontraste.co'
-    // y no devuelven noticias. Esto es un problema externo a la app que debería ser revisado en el sitio web.
+    'Últimas': null,
     'Pasto': 2,
     'Nariño': 1,
-    // Se ha cambiado el ID 12 por el 17, que corresponde a la categoría 'Nación' en WordPress
-    // y sí devuelve los resultados esperados para Colombia.
     'Colombia': 7,
   };
-  int? _selectedNewsCategoryId; // Inicia con 'Ultimas Noticias' (null)
+  int? _selectedNewsCategoryId;
 
-  // Lista para almacenar los widgets de las pestañas y cargarlos perezosamente.
   late final List<Widget?> _tabWidgets;
 
   @override
   void initState() {
     super.initState();
-    // Inicializamos la lista con nulls. El tamaño debe coincidir con el número de pestañas.
     _tabWidgets = List<Widget?>.filled(_tabs.length, null);
-    // Creamos el widget de la primera pestaña (Radio) ya que es la inicial.
     _tabWidgets[0] = const SimpleScheduleWidget();
   }
 
@@ -57,9 +51,9 @@ class _HomePageState extends State<HomePage> {
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
+              const Text(
                 ' EN VIVO ',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
                 ),
@@ -76,14 +70,12 @@ class _HomePageState extends State<HomePage> {
           children: [
             Image.asset('assets/logoradio.png', height: 80),
             const SizedBox(height: 16),
-            // Envolvemos el reproductor en AnimatedSize para que el espacio que ocupa
-            // se anime suavemente, permitiendo que el contenido de abajo suba.
             AnimatedSize(
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeInOut,
-              child: _NowplayingWidget(isNewsSelected: _selectedTabIndex == 1),
+              child: const _NowplayingWidget(),
             ),
-            const SizedBox(height: 16), // Espacio entre reproductor y pestañas
+            const SizedBox(height: 16),
             Row(
               children: _tabs.asMap().entries.map((entry) {
                 final index = entry.key;
@@ -99,8 +91,6 @@ class _HomePageState extends State<HomePage> {
                 );
               }).toList(),
             ),
-            // Este Column agrupa los widgets de la sección de noticias y se anima
-            // para aparecer o desaparecer, optimizando el espacio vertical.
             AnimatedSize(
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeInOut,
@@ -108,9 +98,7 @@ class _HomePageState extends State<HomePage> {
                   ? Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(
-                          height: 16,
-                        ), // Espacio antes de las categorías
+                        const SizedBox(height: 16),
                         _NewsCategories(
                           categories: _newsCategories,
                           selectedCategoryId: _selectedNewsCategoryId,
@@ -124,29 +112,20 @@ class _HomePageState extends State<HomePage> {
                     )
                   : const SizedBox.shrink(),
             ),
-            Expanded(
-              // Este es el widget que nos dará la carga perezosa.
-              child: _buildTabContent(),
-            ),
+            Expanded(child: _buildTabContent()),
           ],
         ),
       ),
     );
   }
 
-  // Método para construir el contenido de la pestaña de forma perezosa.
   Widget _buildTabContent() {
-    // Si el widget para la pestaña actual aún no ha sido creado (es null), lo creamos.
     if (_selectedTabIndex == 1) {
-      // Para la pestaña de noticias, la reconstruimos siempre para que el filtro de categoría funcione.
       _tabWidgets[1] = _getWidgetForTab(_selectedTabIndex);
     } else {
-      // Para las otras pestañas, solo las creamos una vez.
       _tabWidgets[_selectedTabIndex] ??= _getWidgetForTab(_selectedTabIndex);
     }
 
-    // Usamos un AnimatedSwitcher para una transición suave entre pestañas.
-    // La clave (key) es importante para que AnimatedSwitcher sepa que el widget ha cambiado.
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       child: Container(
@@ -156,7 +135,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Devuelve el widget correspondiente a cada pestaña.
   Widget _getWidgetForTab(int index) {
     switch (index) {
       case 1:
@@ -166,30 +144,31 @@ class _HomePageState extends State<HomePage> {
         );
       case 2:
         return const _VideosWidget();
-      default: // case 0 y cualquier otro caso
+      default:
         return const SimpleScheduleWidget();
     }
   }
 }
 
 class _NowplayingWidget extends StatelessWidget {
-  final bool isNewsSelected;
-
-  // El parámetro se conservará, pero ya no se usará.
-  const _NowplayingWidget({this.isNewsSelected = false});
+  const _NowplayingWidget();
 
   Widget _buildFullPlayer(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
-      color: const Color.fromARGB(255, 7, 38, 65),
+      color: theme.colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 28.0),
         child: Column(
           children: [
-            const Text(
+            Text(
               "El Contraste Radio",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
             const RadioPlayerWidget(),
@@ -199,67 +178,9 @@ class _NowplayingWidget extends StatelessWidget {
     );
   }
 
-  // Dejamos la versión compacta aquí pero comentada
-  /*
-  Widget _buildCompactPlayer(BuildContext context) {
-    return Card(
-      color: const Color.fromARGB(255, 7, 38, 65),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Ahora suena:",
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  Text(
-                    "El Contraste Radio",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-            // Envolvemos el RadioPlayerWidget en Flexible para que se ajuste
-            // al espacio disponible en la Row, solucionando el error de layout.
-            // Le indicamos que es la versión compacta.
-            const Flexible(child: RadioPlayerWidget(isCompact: true)),
-          ],
-        ),
-      ),
-    );
-  }
-  */
-
   @override
   Widget build(BuildContext context) {
-    // Always show the full player; do not alternate by isNewsSelected.
     return _buildFullPlayer(context);
-
-    // Código original con AnimatedCrossFade, solo para referencia:
-    /*
-    return AnimatedCrossFade(
-      duration: const Duration(milliseconds: 400),
-      firstChild: _buildFullPlayer(context),
-      secondChild: _buildCompactPlayer(context),
-      crossFadeState: isNewsSelected
-          ? CrossFadeState.showSecond
-          : CrossFadeState.showFirst,
-      layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
-        return Stack(
-          alignment: Alignment.center,
-          children: <Widget>[bottomChild, topChild],
-        );
-      },
-    );
-    */
   }
 }
 
@@ -276,6 +197,7 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = context.themeColors;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -284,9 +206,7 @@ class _TabButton extends StatelessWidget {
           alignment: Alignment.center,
           margin: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(
-            color: selected
-                ? Color.fromARGB(255, 42, 76, 156)
-                : Color(0xFF2A86C7),
+            color: selected ? themeColors.tabBarSelected : AppColors.blueBrand,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -302,7 +222,6 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-// Widget para mostrar los botones de filtro de categorías de noticias
 class _NewsCategories extends StatelessWidget {
   final Map<String, int?> categories;
   final int? selectedCategoryId;
@@ -334,7 +253,6 @@ class _NewsCategories extends StatelessWidget {
   }
 }
 
-// Botón individual para una categoría de noticia
 class _CategoryButton extends StatelessWidget {
   final String text;
   final bool selected;
@@ -348,6 +266,8 @@ class _CategoryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaceColor = theme.colorScheme.surface;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -355,17 +275,17 @@ class _CategoryButton extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected ? surfaceColor : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? Colors.white : Colors.grey[400]!,
+            color: selected ? surfaceColor : Colors.grey[400]!,
             width: 1.5,
           ),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: selected ? const Color(0xFF1A2B40) : Colors.white,
+            color: selected ? theme.textTheme.bodyLarge?.color : Colors.white,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -388,14 +308,12 @@ class _NewsWidgetState extends State<_NewsWidget> {
   @override
   void initState() {
     super.initState();
-    // Obtenemos los posts para la categoría que nos pasan.
-    // Como usamos una ValueKey en el widget, initState se vuelve a llamar
-    // cada vez que la categoría cambia, recargando las noticias.
     _postsFuture = NewsService().fetchPosts(categoryId: widget.categoryId);
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return FutureBuilder<List<Post>>(
       future: _postsFuture,
       builder: (context, snapshot) {
@@ -409,13 +327,13 @@ class _NewsWidgetState extends State<_NewsWidget> {
             ),
           );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
+              padding: const EdgeInsets.all(32.0),
               child: Text(
                 'No se encontraron noticias en esta categoría.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
+                style: theme.textTheme.bodyLarge?.copyWith(fontSize: 16),
               ),
             ),
           );
@@ -427,8 +345,6 @@ class _NewsWidgetState extends State<_NewsWidget> {
           itemCount: posts.length,
           itemBuilder: (context, index) {
             final post = posts[index];
-            // Envolvemos la tarjeta en un SizedBox para darle un ancho específico
-            // en la lista horizontal. Esto hace que se vea parte de la siguiente tarjeta.
             return SizedBox(
               width: MediaQuery.of(context).size.width * 0.85,
               height: 450,
@@ -447,6 +363,10 @@ class _NewsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeColors = context.themeColors;
+    final onSurfaceVariant = theme.textTheme.bodySmall?.color ?? Colors.white70;
+    final onSurface = theme.textTheme.bodyLarge?.color ?? Colors.white;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -455,7 +375,7 @@ class _NewsCard extends StatelessWidget {
         );
       },
       child: Card(
-        color: const Color.fromARGB(255, 13, 42, 78),
+        color: themeColors.cardColor,
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         elevation: 5,
         clipBehavior: Clip.antiAlias,
@@ -468,7 +388,6 @@ class _NewsCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Imagen completa
                 if (post.featuredImageUrl != null)
                   Hero(
                     tag: 'news_image_${post.id}',
@@ -479,62 +398,51 @@ class _NewsCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
                         height: 200,
-                        color: const Color.fromARGB(255, 32, 24, 104),
+                        color: themeColors.placeholderColor,
                         child: const Center(child: CircularProgressIndicator()),
                       ),
                       errorWidget: (context, url, error) =>
                           const Icon(Icons.image_not_supported, size: 50),
                     ),
                   ),
-
-                // Contenido completo de la noticia
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Título
                       Text(
                         post.title,
-                        style: const TextStyle(
+                        style: theme.textTheme.titleLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
                         ),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
-
                       const SizedBox(height: 12),
-
-                      // ✅ FECHA - AHORA FUNCIONA
-                      if (post.date != null)
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today,
-                              size: 16,
-                              color: Colors.white70,
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatDate(post.date),
+                            style: TextStyle(
+                              color: onSurfaceVariant,
+                              fontSize: 14,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _formatDate(post.date!),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                      if (post.date != null) const SizedBox(height: 12),
-
-                      // Extracto o contenido resumido
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       if (post.excerpt.isNotEmpty)
                         Text(
                           _cleanHtml(post.excerpt),
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: onSurfaceVariant,
                             fontSize: 14,
                             height: 1.4,
                           ),
@@ -544,47 +452,45 @@ class _NewsCard extends StatelessWidget {
                       else if (post.content.isNotEmpty)
                         Text(
                           _cleanHtml(post.content),
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: onSurfaceVariant,
                             fontSize: 14,
                             height: 1.4,
                           ),
                           maxLines: 4,
                           overflow: TextOverflow.ellipsis,
                         ),
-
                       const SizedBox(height: 16),
-
-                      // Botón "Leer más" siempre visible
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.blue[800]!.withOpacity(0.3),
+                          color: AppColors.blueBrand.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue[300]!),
+                          border: Border.all(
+                            color: AppColors.blueBrand.withValues(alpha: 0.5),
+                          ),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               "Leer noticia completa",
                               style: TextStyle(
-                                color: Colors.white,
+                                color: onSurface,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Icon(
                               Icons.arrow_forward,
-                              color: Colors.white,
+                              color: onSurface,
                               size: 18,
                             ),
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 8),
                     ],
                   ),
@@ -597,25 +503,17 @@ class _NewsCard extends StatelessWidget {
     );
   }
 
-  // ✅ MÉTODO PARA FORMATEAR LA FECHA
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
 
-    // Si es hoy
     if (difference.inDays == 0) {
       return 'Hoy';
-    }
-    // Si es ayer
-    else if (difference.inDays == 1) {
+    } else if (difference.inDays == 1) {
       return 'Ayer';
-    }
-    // Si es esta semana
-    else if (difference.inDays < 7) {
+    } else if (difference.inDays < 7) {
       return 'Hace ${difference.inDays} días';
-    }
-    // Formato normal
-    else {
+    } else {
       return '${date.day}/${date.month}/${date.year}';
     }
   }
@@ -641,12 +539,13 @@ class _VideosWidgetState extends State<_VideosWidget> {
   @override
   void initState() {
     super.initState();
-    // Cargamos los videos del canal de YouTube
     _videosFuture = YoutubeService().fetchChannelVideos();
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeColors = context.themeColors;
     return FutureBuilder<List<Video>>(
       future: _videosFuture,
       builder: (context, snapshot) {
@@ -663,7 +562,12 @@ class _VideosWidgetState extends State<_VideosWidget> {
             ),
           );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No se encontraron videos.'));
+          return Center(
+            child: Text(
+              'No se encontraron videos.',
+              style: theme.textTheme.bodyMedium,
+            ),
+          );
         }
 
         final videos = snapshot.data!;
@@ -681,7 +585,7 @@ class _VideosWidgetState extends State<_VideosWidget> {
                 );
               },
               child: Card(
-                color: const Color(0xFF1A2B40),
+                color: themeColors.cardColor,
                 margin: const EdgeInsets.symmetric(
                   vertical: 8.0,
                   horizontal: 4.0,
@@ -699,7 +603,7 @@ class _VideosWidgetState extends State<_VideosWidget> {
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           height: 200,
-                          color: Colors.grey[800],
+                          color: themeColors.placeholderColor,
                           child: const Center(
                             child: CircularProgressIndicator(),
                           ),
@@ -714,8 +618,7 @@ class _VideosWidgetState extends State<_VideosWidget> {
                         children: [
                           Text(
                             video.title,
-                            style: const TextStyle(
-                              fontSize: 16,
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                             maxLines: 2,
@@ -735,69 +638,127 @@ class _VideosWidgetState extends State<_VideosWidget> {
   }
 }
 
-class SimpleScheduleWidget extends StatelessWidget {
-  const SimpleScheduleWidget({Key? key}) : super(key: key);
+class SimpleScheduleWidget extends StatefulWidget {
+  const SimpleScheduleWidget({super.key});
 
-  final List<_ScheduleItem> schedule = const [
-    _ScheduleItem(
-      time: '6:00 a.m. – 9:00 a.m.',
-      program: 'El Contraste Noticias',
-      description:
-          'Noticiero de lunes a viernes con los hechos más importantes de Pasto, Nariño y Colombia transmitido en VIVO',
-    ),
-    _ScheduleItem(
-      time: '9:00 a.m. – 12:00 p.m.',
-      program: 'Rock del Día',
-      description: 'Rock en español clásico y moderno.',
-    ),
-    _ScheduleItem(
-      time: '12:00 p.m. – 2:00 p.m.',
-      program: 'Salsa y Sabor',
-      description: 'Salsa clásica y moderna.',
-    ),
-    _ScheduleItem(
-      time: '2:00 p.m. – 5:00 p.m.',
-      program: 'Rock Alternativo y Latino',
-      description: 'Mezcla de géneros.',
-    ),
-    _ScheduleItem(
-      time: '5:00 p.m. – 9:00 p.m.',
-      program: 'Hecho en Colombia',
-      description: 'Artistas nacionales y locales.',
-    ),
-    _ScheduleItem(
-      time: '9:00 p.m. – 5:00 a.m.',
-      program: 'Cristiana Alabanza y Adoración',
-      description: '',
-    ),
-  ];
+  @override
+  State<SimpleScheduleWidget> createState() => _SimpleScheduleWidgetState();
+}
+
+class _SimpleScheduleWidgetState extends State<SimpleScheduleWidget> {
+  late Future<List<RadioEmission>> _emissionsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _emissionsFuture = EmissionsService.getEmissions();
+  }
+
+  Future<void> _refreshEmissions() async {
+    setState(() {
+      _emissionsFuture = EmissionsService.getEmissions();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeColors = context.themeColors;
+
     return Card(
-      color: const Color.fromARGB(255, 13, 42, 78),
+      color: themeColors.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.all(12),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         child: SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,
-          child: ListView(
-            physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Programación',
-                style: TextStyle(
-                  color: Colors.white,
+              Text(
+                'Emisiones guardadas',
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              ...schedule.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _ScheduleTile(item: item),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    context.read<RadioPlayerHandler>().playLiveRadio();
+                  },
+                  icon: const Icon(Icons.radio),
+                  label: const Text('Volver al vivo'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.blueText,
+                    side: BorderSide(color: AppColors.blueText, width: 1.4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refreshEmissions,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      FutureBuilder<List<RadioEmission>>(
+                        future: _emissionsFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 32),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Text(
+                                'No se pudieron cargar las emisiones.',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            );
+                          }
+
+                          final emissions = snapshot.data ?? [];
+
+                          if (emissions.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Text(
+                                'No hay emisiones disponibles.',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            children: emissions
+                                .map(
+                                  (emission) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: _ScheduleTile(emission: emission),
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -808,33 +769,25 @@ class SimpleScheduleWidget extends StatelessWidget {
   }
 }
 
-class _ScheduleItem {
-  final String time;
-  final String program;
-  final String description;
-
-  const _ScheduleItem({
-    required this.time,
-    required this.program,
-    this.description = '',
-  });
-}
-
 class _ScheduleTile extends StatelessWidget {
-  final _ScheduleItem item;
-  final Widget? leading; // opcional
+  final RadioEmission emission;
 
-  const _ScheduleTile({Key? key, required this.item, this.leading})
-    : super(key: key);
+  const _ScheduleTile({required this.emission});
 
   @override
   Widget build(BuildContext context) {
-    final textColor = Colors.white;
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.titleLarge?.color ?? Colors.white;
+
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: leading,
+      trailing: Icon(
+        Icons.play_circle_fill_rounded,
+        color: AppColors.blueText,
+        size: 32,
+      ),
       title: Text(
-        item.program,
+        emission.displayTitle,
         style: TextStyle(
           color: textColor,
           fontSize: 18,
@@ -845,25 +798,32 @@ class _ScheduleTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            item.time,
+            emission.displayTime,
             style: TextStyle(
-              color: Colors.blue[300],
+              color: AppColors.blueText,
               fontWeight: FontWeight.bold,
               fontSize: 16,
             ),
           ),
-          if (item.description.isNotEmpty) ...[
+          if (emission.displayDuration.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
-              item.description,
+              'Duracion: ${emission.displayDuration}',
               style: TextStyle(
-                color: textColor.withOpacity(0.75),
+                color: textColor.withValues(alpha: 0.75),
                 fontSize: 14,
               ),
             ),
           ],
         ],
       ),
+      onTap: () {
+        context.read<RadioPlayerHandler>().playEmission(
+          audioUrl: emission.audioUrl,
+          title: emission.displayTitle,
+          artist: emission.displayTime,
+        );
+      },
     );
   }
 }

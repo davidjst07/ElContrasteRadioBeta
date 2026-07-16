@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -50,19 +41,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAR8j9N1oWOJ-MmFM_k67O-nQJXlh8f79M',
-    appId: '1:183914466069:android:634e4660968672f6a3371c',
-    messagingSenderId: '183914466069',
-    projectId: 'elcontrastenoticiasapp',
-    storageBucket: 'elcontrastenoticiasapp.firebasestorage.app',
+    apiKey: 'AIzaSyDLmsYbedCQkAPIzo0Vrbvnfa1M9z86Qzg',
+    appId: '1:146644960889:android:9e487ba1b2e39ca8ce76a8',
+    messagingSenderId: '146644960889',
+    projectId: 'elcontrastenoticias-f0ac1',
+    storageBucket: 'elcontrastenoticias-f0ac1.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB7FTOWdXh9Bs2WsYccVC_golfOz9OFz2s',
-    appId: '1:183914466069:ios:8530b135b424aa74a3371c',
-    messagingSenderId: '183914466069',
-    projectId: 'elcontrastenoticiasapp',
-    storageBucket: 'elcontrastenoticiasapp.firebasestorage.app',
+    apiKey: 'AIzaSyAxxhDJisSmM6Fson6peiOMdC8abOVzcsI',
+    appId: '1:146644960889:ios:303509a17845a3aece76a8',
+    messagingSenderId: '146644960889',
+    projectId: 'elcontrastenoticias-f0ac1',
+    storageBucket: 'elcontrastenoticias-f0ac1.firebasestorage.app',
+    iosBundleId: 'com.davidsanchez.elcontrastenoticiasapp',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyAbcIPniSp1zQfWcTWiE0e0NR_2bn2KutE',
+    appId: '1:146644960889:web:80f0775213651fccce76a8',
+    messagingSenderId: '146644960889',
+    projectId: 'elcontrastenoticias-f0ac1',
+    authDomain: 'elcontrastenoticias-f0ac1.firebaseapp.com',
+    storageBucket: 'elcontrastenoticias-f0ac1.firebasestorage.app',
+    measurementId: 'G-32625W8CYY',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAxxhDJisSmM6Fson6peiOMdC8abOVzcsI',
+    appId: '1:146644960889:ios:4b0e71cf6593fe28ce76a8',
+    messagingSenderId: '146644960889',
+    projectId: 'elcontrastenoticias-f0ac1',
+    storageBucket: 'elcontrastenoticias-f0ac1.firebasestorage.app',
     iosBundleId: 'com.example.elcontrasteapp',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyAbcIPniSp1zQfWcTWiE0e0NR_2bn2KutE',
+    appId: '1:146644960889:web:fb08f504ecbc9689ce76a8',
+    messagingSenderId: '146644960889',
+    projectId: 'elcontrastenoticias-f0ac1',
+    authDomain: 'elcontrastenoticias-f0ac1.firebaseapp.com',
+    storageBucket: 'elcontrastenoticias-f0ac1.firebasestorage.app',
+    measurementId: 'G-QMEMH3PFWW',
+  );
+
 }

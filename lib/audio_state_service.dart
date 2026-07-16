@@ -16,6 +16,15 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
   NowPlaying? _nowPlaying;
   NowPlaying? get nowPlaying => _nowPlaying;
 
+  String _currentTitle = 'El Contraste Radio';
+  String get currentTitle => _currentTitle;
+
+  String _currentSubtitle = 'En Vivo';
+  String get currentSubtitle => _currentSubtitle;
+
+  bool _isPlayingEmission = false;
+  bool get isPlayingEmission => _isPlayingEmission;
+
   Timer? _nowPlayingTimer;
 
   // Constante para el artwork
@@ -71,7 +80,7 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
         ),
       );
 
-      this.mediaItem.add(initialMediaItem);
+      mediaItem.add(initialMediaItem);
 
       // Configurar la fuente de audio con la URL del stream
       await _player.setAudioSource(
@@ -81,9 +90,11 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
         ),
       );
 
-      print('✅ Fuente de audio configurada: ${AzuraCastService.streamUrl}');
+      debugPrint(
+        '✅ Fuente de audio configurada: ${AzuraCastService.streamUrl}',
+      );
     } catch (e) {
-      print('❌ Error configurando fuente de audio: $e');
+      debugPrint('❌ Error configurando fuente de audio: $e');
       statusMessage = 'Error de conexión';
       notifyListeners();
     }
@@ -118,6 +129,13 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
       if (data != null) {
         _nowPlaying = data;
 
+        if (!_isPlayingEmission) {
+          _currentTitle = data.title != 'Sin informacion'
+              ? data.title
+              : 'El Contraste Radio';
+          _currentSubtitle = data.artist.isNotEmpty ? data.artist : 'En Vivo';
+        }
+
         // Actualizar el MediaItem con la información de AzuraCast
         final updatedMediaItem = MediaItem(
           id: AzuraCastService.streamUrl,
@@ -133,7 +151,7 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
           ), // Imagen local
         );
 
-        this.mediaItem.add(updatedMediaItem);
+        mediaItem.add(updatedMediaItem);
         notifyListeners();
       }
     } catch (e) {
@@ -141,38 +159,82 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
     }
   }
 
-  /*Future<void> setUrl(String url) async {
-    final mediaItem = MediaItem(
-      id: url,
-      album: 'El Contraste Radio',
-      title: 'Emisora Online',
-      artist: 'El Contraste',
-      artUri: Uri.parse(
-        'https://elcontraste.co/wp-content/uploads/2024/04/Logo-el-contraste-RadioRecurso-1.png',
-      ),
-    );
-
-    this.mediaItem.add(mediaItem);
-
-    // Usa JustAudioBackground para mostrar los controles del sistema
-    await _player.setAudioSource(
-      AudioSource.uri(
-        Uri.parse(url),
-        tag: MediaItem(
-          id: url,
-          album: 'El Contraste Radio',
-          title: 'Emisora Online',
-          artist: 'El Contraste',
-          artUri: Uri.parse(
-            'https://elcontraste.co/wp-content/uploads/2024/04/Logo-el-contraste-RadioRecurso-1.png',
-          ),
-        ),
-      ),
-    );
-  }*/
-
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   PlayerState get playerState => _player.playerState;
+
+  Stream<Duration> get positionStream => _player.positionStream;
+  Stream<Duration?> get durationStream => _player.durationStream;
+  Duration get position => _player.position;
+  Duration? get duration => _player.duration;
+
+  Future<void> seekTo(Duration position) async {
+    try {
+      await _player.seek(position);
+    } catch (e) {
+      debugPrint('Error moviendo reproduccion: $e');
+    }
+  }
+
+  Future<void> playEmission({
+    required String audioUrl,
+    required String title,
+    String artist = 'El Contraste Radio',
+  }) async {
+    try {
+      statusMessage = 'Cargando emision...';
+      notifyListeners();
+
+      _isPlayingEmission = true;
+      _currentTitle = title;
+      _currentSubtitle = artist;
+
+      final emissionMediaItem = MediaItem(
+        id: audioUrl,
+        album: 'Emisiones guardadas',
+        title: title,
+        artist: artist,
+        artUri: Uri.parse(
+          'https://elcontraste.co/wp-content/uploads/2023/01/cropped-c-negra-logo.png',
+        ),
+      );
+
+      mediaItem.add(emissionMediaItem);
+
+      await _player.setAudioSource(
+        AudioSource.uri(Uri.parse(audioUrl), tag: emissionMediaItem),
+      );
+
+      await _player.play();
+
+      statusMessage = 'Reproduciendo emision';
+      notifyListeners();
+    } catch (e) {
+      statusMessage = 'Error al reproducir emision';
+      notifyListeners();
+      debugPrint('Error reproduciendo emision: $e');
+    }
+  }
+
+  Future<void> playLiveRadio() async {
+    try {
+      statusMessage = 'Conectando en vivo...';
+      notifyListeners();
+
+      _isPlayingEmission = false;
+      _currentTitle = 'El Contraste Radio';
+      _currentSubtitle = 'En Vivo';
+
+      await _setupAudioSource();
+      await _player.play();
+
+      statusMessage = 'Reproduciendo en vivo';
+      notifyListeners();
+    } catch (e) {
+      statusMessage = 'Error al conectar en vivo';
+      notifyListeners();
+      debugPrint('Error reproduciendo radio en vivo: $e');
+    }
+  }
 
   @override
   Future<void> play() async {
@@ -191,7 +253,7 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
     } catch (e) {
       statusMessage = 'Error al conectar';
       notifyListeners();
-      print('Error al reproducir: $e');
+      debugPrint('Error al reproducir: $e');
     }
   }
 
@@ -202,7 +264,7 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
       statusMessage = 'Pausado';
       notifyListeners();
     } catch (e) {
-      print('Error al pausar: $e');
+      debugPrint('Error al pausar: $e');
     }
   }
 
@@ -213,7 +275,7 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
       statusMessage = 'Detenido';
       notifyListeners();
     } catch (e) {
-      print('Error al detener: $e');
+      debugPrint('Error al detener: $e');
     }
     return super.stop();
   }

@@ -1,15 +1,18 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:elcontrasteapp/presentation/pages/home/post_model.dart';
+import 'package:elcontrasteapp/data/models/post_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 
 class NewsDetailPage extends StatelessWidget {
   final Post post;
 
+
+
   const NewsDetailPage({super.key, required this.post});
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(title: Text(post.title)),
       body: SingleChildScrollView(
@@ -78,3 +81,4 @@ class NewsDetailPage extends StatelessWidget {
     );
   }
 }
+

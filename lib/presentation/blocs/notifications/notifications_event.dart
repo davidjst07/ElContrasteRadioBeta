@@ -10,7 +10,7 @@ sealed class NotificationsEvent extends Equatable {
 class NotificationStatusChanged extends NotificationsEvent {
   final AuthorizationStatus status;
 
-  NotificationStatusChanged(this.status);
+  const NotificationStatusChanged(this.status);
 }
 
 class NotificationReceived extends NotificationsEvent {

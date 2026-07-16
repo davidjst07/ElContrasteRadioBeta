@@ -1,3 +1,4 @@
+import 'package:elcontrasteapp/core/themes/app_theme.dart';
 import 'package:elcontrasteapp/presentation/blocs/notifications/notifications_bloc.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -21,19 +22,20 @@ class MenuApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(color: Color(0xFF0B375E)),
-            child: Text(
+          DrawerHeader(
+            decoration: BoxDecoration(color: AppColors.navyAppbar),
+            child: const Text(
               'El Contraste App',
               style: TextStyle(color: Colors.white, fontSize: 24),
             ),
           ),
 
-          // ----- Redes sociales -----
           ExpansionTile(
             leading: const Icon(Icons.link),
             title: const Text('Síguenos'),
@@ -132,7 +134,6 @@ class MenuApp extends StatelessWidget {
             ],
           ),
 
-          // ----- Contacto -----
           ListTile(
             leading: const FaIcon(
               FontAwesomeIcons.whatsapp,
@@ -175,7 +176,68 @@ class MenuApp extends StatelessWidget {
 
           const Divider(),
 
-          // ----- Estado de notificaciones (permiso) -----
+          const SizedBox(height: 16),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                Navigator.pop(context);
+                _launchURL('https://jyd-producciones.com/index.html', context);
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.75,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Desarrollada por',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 11,
+                        letterSpacing: 0.8,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.72,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'JYD Producciones',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Icon(
+                      Icons.open_in_new,
+                      size: 14,
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.55,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
           BlocBuilder<NotificationsBloc, NotificationsState>(
             builder: (context, state) {
               final isGranted = state.status == AuthorizationStatus.authorized;
@@ -201,7 +263,6 @@ class MenuApp extends StatelessWidget {
             },
           ),
 
-          // ----- Últimas notificaciones -----
           BlocBuilder<NotificationsBloc, NotificationsState>(
             builder: (context, state) {
               final notifications = state.notifications;
@@ -218,14 +279,17 @@ class MenuApp extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: 16.0,
                       vertical: 8,
                     ),
                     child: Text(
                       'Últimas notificaciones',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: theme.textTheme.titleLarge?.color,
+                      ),
                     ),
                   ),
                   ...lastNotifications.map((n) {
@@ -240,7 +304,10 @@ class MenuApp extends StatelessWidget {
                                 fit: BoxFit.cover,
                               ),
                             )
-                          : const Icon(Icons.notifications, color: Colors.grey),
+                          : Icon(
+                              Icons.notifications,
+                              color: theme.textTheme.bodySmall?.color,
+                            ),
                       title: Text(
                         n.title,
                         maxLines: 1,
@@ -254,7 +321,7 @@ class MenuApp extends StatelessWidget {
                             )
                           : null,
                     );
-                  }).toList(),
+                  }),
                 ],
               );
             },
