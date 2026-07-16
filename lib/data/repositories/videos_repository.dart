@@ -1,20 +1,20 @@
 import 'dart:convert';
-import 'package:elcontrasteapp/presentation/pages/home/video_model.dart';
+import 'package:elcontrasteapp/data/models/video_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-class YoutubeService {
+class VideosRepository {
   // 1. Instancia privada y estática (Singleton)
-  static final YoutubeService _instance = YoutubeService._internal();
+  static final VideosRepository _instance = VideosRepository._internal();
 
   // 2. Factory constructor que devuelve siempre la misma instancia
-  factory YoutubeService() {
+  factory VideosRepository() {
     return _instance;
   }
 
   // 3. Constructor privado interno
-  YoutubeService._internal();
+  VideosRepository._internal();
 
   // Leemos las claves de forma segura desde las variables de entorno
   final String _apiKey = dotenv.env['YOUTUBE_API_KEY'] ?? 'NO_KEY';

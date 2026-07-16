@@ -1,4 +1,4 @@
-
+import 'package:elcontrasteapp/core/utils/html_utils.dart';
 
 class Post {
   final int id;
@@ -29,10 +29,7 @@ class Post {
 
     final date = DateTime.parse(json['date']);
     final title = json['title']['rendered'].replaceAll('&#8211;', '-');
-    final excerpt = json['excerpt']['rendered'].replaceAll(
-      RegExp(r'<[^>]*>'),
-      '',
-    );
+    final excerpt = stripHtmlTags(json['excerpt']['rendered']);
 
     return Post(
       id: json['id'],

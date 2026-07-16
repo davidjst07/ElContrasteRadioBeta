@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
-import 'now_playing_service.dart';
+import 'package:elcontrasteapp/data/repositories/now_playing_repository.dart';
+import 'package:elcontrasteapp/data/models/now_playing_model.dart';
 
 class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
   final AudioPlayer _player = AudioPlayer();
@@ -125,7 +126,7 @@ class RadioPlayerHandler extends BaseAudioHandler with ChangeNotifier {
 
   Future<void> _updateNowPlaying() async {
     try {
-      final data = await NowPlayingService.getNowPlaying();
+      final data = await NowPlayingRepository.getNowPlaying();
       if (data != null) {
         _nowPlaying = data;
 

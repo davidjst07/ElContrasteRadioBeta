@@ -3,13 +3,16 @@ import 'package:elcontrasteapp/core/themes/app_theme.dart';
 import 'package:elcontrasteapp/data/models/post_model.dart';
 import 'package:elcontrasteapp/data/services/news_service.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
-import 'package:elcontrasteapp/presentation/pages/home/video_model.dart';
+import 'package:elcontrasteapp/data/models/video_model.dart';
 import 'package:elcontrasteapp/presentation/pages/home/video_player_page.dart';
-import 'package:elcontrasteapp/presentation/pages/home/youtube_service.dart';
+import 'package:elcontrasteapp/data/repositories/videos_repository.dart';
 import 'package:elcontrasteapp/presentation/widgets/menu_app.dart';
 import 'package:elcontrasteapp/presentation/widgets/radio_player_widget.dart';
-import 'package:elcontrasteapp/audio_state_service.dart';
-import 'package:elcontrasteapp/emissions_service.dart';
+import 'package:elcontrasteapp/presentation/audio/radio_player_handler.dart';
+import 'package:elcontrasteapp/data/repositories/emissions_repository.dart';
+import 'package:elcontrasteapp/data/models/radio_emission_model.dart';
+import 'package:elcontrasteapp/core/utils/html_utils.dart';
+import 'package:elcontrasteapp/core/utils/date_formatter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter/material.dart';
@@ -429,7 +432,7 @@ class _NewsCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            _formatDate(post.date),
+                            formatRelativeDate(post.date),
                             style: TextStyle(
                               color: onSurfaceVariant,
                               fontSize: 14,
@@ -440,7 +443,7 @@ class _NewsCard extends StatelessWidget {
                       const SizedBox(height: 12),
                       if (post.excerpt.isNotEmpty)
                         Text(
-                          _cleanHtml(post.excerpt),
+                          stripHtml(post.excerpt),
                           style: TextStyle(
                             color: onSurfaceVariant,
                             fontSize: 14,
@@ -451,7 +454,7 @@ class _NewsCard extends StatelessWidget {
                         )
                       else if (post.content.isNotEmpty)
                         Text(
-                          _cleanHtml(post.content),
+                          stripHtml(post.content),
                           style: TextStyle(
                             color: onSurfaceVariant,
                             fontSize: 14,
@@ -503,27 +506,6 @@ class _NewsCard extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Hoy';
-    } else if (difference.inDays == 1) {
-      return 'Ayer';
-    } else if (difference.inDays < 7) {
-      return 'Hace ${difference.inDays} días';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
-  }
-
-  String _cleanHtml(String html) {
-    return html
-        .replaceAll(RegExp(r'<[^>]*>'), '')
-        .replaceAll(RegExp(r'&[^;]+;'), '')
-        .trim();
-  }
 }
 
 class _VideosWidget extends StatefulWidget {
@@ -539,7 +521,7 @@ class _VideosWidgetState extends State<_VideosWidget> {
   @override
   void initState() {
     super.initState();
-    _videosFuture = YoutubeService().fetchChannelVideos();
+    _videosFuture = VideosRepository().fetchChannelVideos();
   }
 
   @override
@@ -651,12 +633,12 @@ class _SimpleScheduleWidgetState extends State<SimpleScheduleWidget> {
   @override
   void initState() {
     super.initState();
-    _emissionsFuture = EmissionsService.getEmissions();
+    _emissionsFuture = EmissionsRepository.getEmissions();
   }
 
   Future<void> _refreshEmissions() async {
     setState(() {
-      _emissionsFuture = EmissionsService.getEmissions();
+      _emissionsFuture = EmissionsRepository.getEmissions();
     });
   }
 
