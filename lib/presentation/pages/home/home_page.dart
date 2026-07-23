@@ -1,6 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:elcontrasteapp/core/constants/news_categories.dart';
+import 'package:elcontrasteapp/core/di/service_locator.dart';
 import 'package:elcontrasteapp/core/themes/app_theme.dart';
 import 'package:elcontrasteapp/data/models/post_model.dart';
+import 'package:elcontrasteapp/data/services/app_update_service.dart';
 import 'package:elcontrasteapp/data/services/news_service.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
 import 'package:elcontrasteapp/data/models/video_model.dart';
@@ -8,12 +10,20 @@ import 'package:elcontrasteapp/presentation/pages/home/video_player_page.dart';
 import 'package:elcontrasteapp/data/repositories/videos_repository.dart';
 import 'package:elcontrasteapp/presentation/widgets/menu_app.dart';
 import 'package:elcontrasteapp/presentation/widgets/radio_player_widget.dart';
+import 'package:elcontrasteapp/presentation/widgets/shimmer_box.dart';
+import 'package:elcontrasteapp/presentation/widgets/app_network_image.dart';
+import 'package:elcontrasteapp/presentation/widgets/async_state_view.dart';
+import 'package:elcontrasteapp/presentation/widgets/favorite_button.dart';
+import 'package:elcontrasteapp/presentation/pages/search/news_search_page.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:elcontrasteapp/presentation/audio/radio_player_handler.dart';
 import 'package:elcontrasteapp/data/repositories/emissions_repository.dart';
 import 'package:elcontrasteapp/data/models/radio_emission_model.dart';
 import 'package:elcontrasteapp/core/utils/html_utils.dart';
 import 'package:elcontrasteapp/core/utils/date_formatter.dart';
-import 'package:provider/provider.dart';
+import 'package:elcontrasteapp/data/local/news_cache_store.dart';
+import 'package:elcontrasteapp/presentation/blocs/news/news_cubit.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter/material.dart';
 
@@ -27,13 +37,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedTabIndex = 0;
   final List<String> _tabs = ["Radio", "Noticias", "Videos"];
-
-  final Map<String, int?> _newsCategories = {
-    'Últimas': null,
-    'Pasto': 2,
-    'Nariño': 1,
-    'Colombia': 7,
-  };
   int? _selectedNewsCategoryId;
 
   late final List<Widget?> _tabWidgets;
@@ -43,6 +46,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _tabWidgets = List<Widget?>.filled(_tabs.length, null);
     _tabWidgets[0] = const SimpleScheduleWidget();
+    AppUpdateService.checkForUpdate();
   }
 
   @override
@@ -51,6 +55,16 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('El Contraste Noticias'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Buscar noticias',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NewsSearchPage()),
+              );
+            },
+          ),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -76,7 +90,7 @@ class _HomePageState extends State<HomePage> {
             AnimatedSize(
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeInOut,
-              child: const _NowplayingWidget(),
+              child: _NowplayingWidget(compact: _selectedTabIndex == 1),
             ),
             const SizedBox(height: 16),
             Row(
@@ -103,7 +117,7 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         const SizedBox(height: 16),
                         _NewsCategories(
-                          categories: _newsCategories,
+                          categories: newsCategories,
                           selectedCategoryId: _selectedNewsCategoryId,
                           onCategorySelected: (id) {
                             setState(() {
@@ -154,7 +168,8 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _NowplayingWidget extends StatelessWidget {
-  const _NowplayingWidget();
+  final bool compact;
+  const _NowplayingWidget({this.compact = false});
 
   Widget _buildFullPlayer(BuildContext context) {
     final theme = Theme.of(context);
@@ -181,9 +196,41 @@ class _NowplayingWidget extends StatelessWidget {
     );
   }
 
+  Widget _buildCompactPlayer(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
+        child: Row(
+          children: [
+            Icon(
+              Icons.radio,
+              color: theme.colorScheme.onSurfaceVariant,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "El Contraste Radio en vivo",
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const RadioPlayerWidget(isCompact: true),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return _buildFullPlayer(context);
+    return compact ? _buildCompactPlayer(context) : _buildFullPlayer(context);
   }
 }
 
@@ -297,39 +344,68 @@ class _CategoryButton extends StatelessWidget {
   }
 }
 
-class _NewsWidget extends StatefulWidget {
+class _NewsWidget extends StatelessWidget {
   final int? categoryId;
   const _NewsWidget({super.key, this.categoryId});
 
   @override
-  State<_NewsWidget> createState() => _NewsWidgetState();
+  Widget build(BuildContext context) {
+    return BlocProvider<NewsCubit>(
+      lazy: false,
+      create: (_) => NewsCubit(
+        newsService: getIt<NewsService>(),
+        cacheStore: getIt<NewsCacheStore>(),
+        categoryId: categoryId,
+      )..fetchInitial(),
+      child: const _NewsListView(),
+    );
+  }
 }
 
-class _NewsWidgetState extends State<_NewsWidget> {
-  late Future<List<Post>> _postsFuture;
+class _NewsListView extends StatefulWidget {
+  const _NewsListView();
 
   @override
-  void initState() {
-    super.initState();
-    _postsFuture = NewsService().fetchPosts(categoryId: widget.categoryId);
+  State<_NewsListView> createState() => _NewsListViewState();
+}
+
+class _NewsListViewState extends State<_NewsListView> {
+  final PageController _pageController = PageController();
+
+  void _handlePageChanged(int index, NewsState state) {
+    if (state.hasMore &&
+        !state.loadingMore &&
+        index >= state.posts.length - 2) {
+      context.read<NewsCubit>().loadMore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return FutureBuilder<List<Post>>(
-      future: _postsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
+    return BlocBuilder<NewsCubit, NewsState>(
+      builder: (context, state) {
+        if (state.status == NewsStatus.loading ||
+            state.status == NewsStatus.initial) {
+          return const _NewsCardSkeleton();
+        }
+
+        if (state.status == NewsStatus.error) {
           return Center(
             child: Text(
-              'Error al cargar noticias: ${snapshot.error}',
+              'Error al cargar noticias: ${state.errorMessage}',
               textAlign: TextAlign.center,
             ),
           );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        }
+
+        if (state.posts.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),
@@ -342,20 +418,82 @@ class _NewsWidgetState extends State<_NewsWidget> {
           );
         }
 
-        final posts = snapshot.data!;
-        return ListView.builder(
-          scrollDirection: Axis.horizontal,
-          itemCount: posts.length,
-          itemBuilder: (context, index) {
-            final post = posts[index];
-            return SizedBox(
-              width: MediaQuery.of(context).size.width * 0.85,
-              height: 450,
-              child: _NewsCard(post: post),
-            );
-          },
+        return PageView.builder(
+          controller: _pageController,
+          scrollDirection: Axis.vertical,
+          itemCount: state.posts.length,
+          onPageChanged: (index) => _handlePageChanged(index, state),
+          itemBuilder: (context, index) => _NewsCard(post: state.posts[index]),
         );
       },
+    );
+  }
+}
+
+class _NewsCardSkeleton extends StatelessWidget {
+  const _NewsCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = context.themeColors;
+    return Shimmer.fromColors(
+      baseColor: themeColors.cardColor,
+      highlightColor: Color.lerp(themeColors.cardColor, Colors.white, 0.25)!,
+      child: Card(
+        color: themeColors.cardColor,
+        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        elevation: 5,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Expanded(
+              flex: 4,
+              child: ShimmerBox(
+                width: double.infinity,
+                height: double.infinity,
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+            Expanded(
+              flex: 6,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const ShimmerBox(width: 220, height: 20),
+                    const SizedBox(height: 8),
+                    const ShimmerBox(width: 140, height: 20),
+                    const SizedBox(height: 12),
+                    const ShimmerBox(width: 100, height: 14),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          ShimmerBox(width: double.infinity, height: 12),
+                          SizedBox(height: 8),
+                          ShimmerBox(width: double.infinity, height: 12),
+                          SizedBox(height: 8),
+                          ShimmerBox(width: 180, height: 12),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ShimmerBox(
+                      width: double.infinity,
+                      height: 44,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -370,142 +508,198 @@ class _NewsCard extends StatelessWidget {
     final themeColors = context.themeColors;
     final onSurfaceVariant = theme.textTheme.bodySmall?.color ?? Colors.white70;
     final onSurface = theme.textTheme.bodyLarge?.color ?? Colors.white;
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => NewsDetailPage(post: post)),
-        );
-      },
-      child: Card(
-        color: themeColors.cardColor,
-        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-        elevation: 5,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 450, maxHeight: 600),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
+    final hasImage = post.featuredImageUrl != null;
+    final description = post.excerpt.isNotEmpty
+        ? post.excerpt
+        : (post.content.isNotEmpty ? post.content : null);
+
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NewsDetailPage(post: post),
+              ),
+            );
+          },
+          child: Card(
+            color: themeColors.cardColor,
+            margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            elevation: 5,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            // Todo el contenido se reparte con Expanded según proporciones, no
+            // alturas fijas: así la tarjeta siempre ocupa exactamente el alto
+            // que le da el PageView, sin desbordarse ni recortar el botón de
+            // abajo, sin importar el tamaño de pantalla.
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                if (post.featuredImageUrl != null)
-                  Hero(
-                    tag: 'news_image_${post.id}',
-                    child: CachedNetworkImage(
-                      imageUrl: post.featuredImageUrl!,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        height: 200,
-                        color: themeColors.placeholderColor,
-                        child: const Center(child: CircularProgressIndicator()),
+                if (hasImage)
+                  Expanded(
+                    flex: 4,
+                    child: Hero(
+                      tag: 'news_image_${post.id}',
+                      child: AppNetworkImage(
+                        imageUrl: post.featuredImageUrl!,
+                        width: double.infinity,
+                        height: double.infinity,
+                        placeholderBackground: themeColors.placeholderColor,
                       ),
-                      errorWidget: (context, url, error) =>
-                          const Icon(Icons.image_not_supported, size: 50),
                     ),
                   ),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.title,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            formatRelativeDate(post.date),
-                            style: TextStyle(
-                              color: onSurfaceVariant,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (post.excerpt.isNotEmpty)
+                Expanded(
+                  flex: hasImage ? 6 : 10,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          stripHtml(post.excerpt),
-                          style: TextStyle(
-                            color: onSurfaceVariant,
-                            fontSize: 14,
-                            height: 1.4,
+                          post.title,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                        )
-                      else if (post.content.isNotEmpty)
-                        Text(
-                          stripHtml(post.content),
-                          style: TextStyle(
-                            color: onSurfaceVariant,
-                            fontSize: 14,
-                            height: 1.4,
-                          ),
-                          maxLines: 4,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.blueBrand.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: AppColors.blueBrand.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        const SizedBox(height: 8),
+                        Row(
                           children: [
-                            Text(
-                              "Leer noticia completa",
-                              style: TextStyle(
-                                color: onSurface,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
                             Icon(
-                              Icons.arrow_forward,
-                              color: onSurface,
-                              size: 18,
+                              Icons.calendar_today,
+                              size: 16,
+                              color: onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              formatRelativeDate(post.date),
+                              style: TextStyle(
+                                color: onSurfaceVariant,
+                                fontSize: 14,
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+                        const SizedBox(height: 8),
+                        if (description != null)
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                // Calcula cuántas líneas caben en el espacio
+                                // sobrante real, en vez de un maxLines fijo que
+                                // se rompe en pantallas chicas o grandes.
+                                const lineHeight = 14 * 1.4;
+                                final maxLines =
+                                    (constraints.maxHeight / lineHeight)
+                                        .floor()
+                                        .clamp(1, 20);
+                                return Text(
+                                  stripHtml(description),
+                                  style: TextStyle(
+                                    color: onSurfaceVariant,
+                                    fontSize: 14,
+                                    height: 1.4,
+                                  ),
+                                  maxLines: maxLines,
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
+                            ),
+                          )
+                        else
+                          const Spacer(),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.blueBrand.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppColors.blueBrand.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Leer noticia completa",
+                                style: TextStyle(
+                                  color: onSurface,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.arrow_forward,
+                                color: onSurface,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
+              shape: BoxShape.circle,
+            ),
+            child: FavoriteButton(post: post, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoCardSkeleton extends StatelessWidget {
+  const _VideoCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = context.themeColors;
+    return Shimmer.fromColors(
+      baseColor: themeColors.cardColor,
+      highlightColor: Color.lerp(themeColors.cardColor, Colors.white, 0.25)!,
+      child: Card(
+        color: themeColors.cardColor,
+        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        elevation: 5,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ShimmerBox(
+              width: double.infinity,
+              height: 200,
+              borderRadius: BorderRadius.zero,
+            ),
+            const Padding(
+              padding: EdgeInsets.all(12.0),
+              child: ShimmerBox(width: double.infinity, height: 18),
+            ),
+          ],
+        ),
       ),
     );
   }
-
 }
 
 class _VideosWidget extends StatefulWidget {
@@ -521,7 +715,7 @@ class _VideosWidgetState extends State<_VideosWidget> {
   @override
   void initState() {
     super.initState();
-    _videosFuture = VideosRepository().fetchChannelVideos();
+    _videosFuture = getIt<VideosRepository>().fetchChannelVideos();
   }
 
   @override
@@ -531,87 +725,70 @@ class _VideosWidgetState extends State<_VideosWidget> {
     return FutureBuilder<List<Video>>(
       future: _videosFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Text(
-                'Error al cargar los videos: ${snapshot.error}',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(
-            child: Text(
-              'No se encontraron videos.',
-              style: theme.textTheme.bodyMedium,
-            ),
-          );
-        }
-
-        final videos = snapshot.data!;
-        return ListView.builder(
-          itemCount: videos.length,
-          itemBuilder: (context, index) {
-            final video = videos[index];
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => VideoPlayerPage(videoId: video.id),
+        return AsyncStateView<List<Video>>(
+          snapshot: snapshot,
+          loadingBuilder: (context) => ListView.builder(
+            itemCount: 4,
+            itemBuilder: (context, index) => const _VideoCardSkeleton(),
+          ),
+          errorMessage: (error) => 'Error al cargar los videos: $error',
+          isEmpty: (videos) => videos.isEmpty,
+          emptyMessage: 'No se encontraron videos.',
+          builder: (context, videos) {
+            return ListView.builder(
+              itemCount: videos.length,
+              itemBuilder: (context, index) {
+                final video = videos[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            VideoPlayerPage(videoId: video.id),
+                      ),
+                    );
+                  },
+                  child: Card(
+                    color: themeColors.cardColor,
+                    margin: const EdgeInsets.symmetric(
+                      vertical: 8.0,
+                      horizontal: 4.0,
+                    ),
+                    elevation: 5,
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (video.thumbnailUrl.isNotEmpty)
+                          AppNetworkImage(
+                            imageUrl: video.thumbnailUrl,
+                            height: 200,
+                            width: double.infinity,
+                            placeholderBackground: themeColors.placeholderColor,
+                            errorIcon: Icons.video_library_outlined,
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                video.title,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
-              child: Card(
-                color: themeColors.cardColor,
-                margin: const EdgeInsets.symmetric(
-                  vertical: 8.0,
-                  horizontal: 4.0,
-                ),
-                elevation: 5,
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (video.thumbnailUrl.isNotEmpty)
-                      CachedNetworkImage(
-                        imageUrl: video.thumbnailUrl,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          height: 200,
-                          color: themeColors.placeholderColor,
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.video_library_outlined, size: 50),
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            video.title,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             );
           },
         );
@@ -697,45 +874,37 @@ class _SimpleScheduleWidgetState extends State<SimpleScheduleWidget> {
                       FutureBuilder<List<RadioEmission>>(
                         future: _emissionsFuture,
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 32),
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          }
-
-                          if (snapshot.hasError) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 24),
-                              child: Text(
+                          return AsyncStateView<List<RadioEmission>>(
+                            snapshot: snapshot,
+                            loadingBuilder: (context) => Column(
+                              children: List.generate(
+                                3,
+                                (index) => const Padding(
+                                  padding: EdgeInsets.only(bottom: 16),
+                                  child: _ScheduleTileSkeleton(),
+                                ),
+                              ),
+                            ),
+                            errorMessage: (error) =>
                                 'No se pudieron cargar las emisiones.',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            );
-                          }
-
-                          final emissions = snapshot.data ?? [];
-
-                          if (emissions.isEmpty) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 24),
-                              child: Text(
-                                'No hay emisiones disponibles.',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            );
-                          }
-
-                          return Column(
-                            children: emissions
-                                .map(
-                                  (emission) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 16),
-                                    child: _ScheduleTile(emission: emission),
-                                  ),
-                                )
-                                .toList(),
+                            isEmpty: (emissions) => emissions.isEmpty,
+                            emptyMessage: 'No hay emisiones disponibles.',
+                            builder: (context, emissions) {
+                              return Column(
+                                children: emissions
+                                    .map(
+                                      (emission) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 16,
+                                        ),
+                                        child: _ScheduleTile(
+                                          emission: emission,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              );
+                            },
                           );
                         },
                       ),
@@ -746,6 +915,39 @@ class _SimpleScheduleWidgetState extends State<SimpleScheduleWidget> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ScheduleTileSkeleton extends StatelessWidget {
+  const _ScheduleTileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = context.themeColors;
+    return Shimmer.fromColors(
+      baseColor: themeColors.cardColor,
+      highlightColor: Color.lerp(themeColors.cardColor, Colors.white, 0.25)!,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                ShimmerBox(width: 220, height: 18),
+                SizedBox(height: 8),
+                ShimmerBox(width: 120, height: 16),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          const ShimmerBox(
+            width: 32,
+            height: 32,
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
+        ],
       ),
     );
   }

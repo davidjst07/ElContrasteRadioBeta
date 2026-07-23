@@ -40,4 +40,22 @@ class Post {
       date: date,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'excerpt': excerpt,
+    'content': content,
+    'featuredImageUrl': featuredImageUrl,
+    'date': date.toIso8601String(),
+  };
+
+  factory Post.fromCacheJson(Map<String, dynamic> json) => Post(
+    id: json['id'] as int,
+    title: json['title'] as String,
+    excerpt: json['excerpt'] as String,
+    content: json['content'] as String,
+    featuredImageUrl: json['featuredImageUrl'] as String?,
+    date: DateTime.parse(json['date'] as String),
+  );
 }

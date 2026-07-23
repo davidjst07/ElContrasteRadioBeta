@@ -1,20 +1,21 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:elcontrasteapp/data/models/post_model.dart';
+import 'package:elcontrasteapp/presentation/widgets/app_network_image.dart';
+import 'package:elcontrasteapp/presentation/widgets/favorite_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 
 class NewsDetailPage extends StatelessWidget {
   final Post post;
 
-
-
   const NewsDetailPage({super.key, required this.post});
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      appBar: AppBar(title: Text(post.title)),
+      appBar: AppBar(
+        title: Text(post.title),
+        actions: [FavoriteButton(post: post)],
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -22,14 +23,11 @@ class NewsDetailPage extends StatelessWidget {
             if (post.featuredImageUrl != null)
               Hero(
                 tag: 'news_image_${post.id}',
-                child: CachedNetworkImage(
+                child: AppNetworkImage(
                   imageUrl: post.featuredImageUrl!,
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
                   width: double.infinity,
                   height: 250,
-                  fit: BoxFit.cover,
+                  errorIcon: Icons.error,
                 ),
               ),
             /*Padding(
@@ -56,13 +54,10 @@ class NewsDetailPage extends StatelessWidget {
                     builder: (ExtensionContext context) {
                       final src = context.attributes['src'];
                       if (src != null) {
-                        return CachedNetworkImage(
+                        return AppNetworkImage(
                           imageUrl: src,
                           fit: BoxFit.fitWidth,
-                          placeholder: (context, url) =>
-                              const Center(child: CircularProgressIndicator()),
-                          errorWidget: (context, url, error) =>
-                              const Icon(Icons.broken_image, size: 50),
+                          errorIcon: Icons.broken_image,
                         );
                       }
                       return Container();
@@ -81,4 +76,3 @@ class NewsDetailPage extends StatelessWidget {
     );
   }
 }
-
