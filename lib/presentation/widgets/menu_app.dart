@@ -1,5 +1,7 @@
 import 'package:elcontrasteapp/core/themes/app_theme.dart';
 import 'package:elcontrasteapp/presentation/blocs/notifications/notifications_bloc.dart';
+import 'package:elcontrasteapp/presentation/pages/favorites/favorites_page.dart';
+import 'package:elcontrasteapp/presentation/pages/notifications/notification_preferences_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -173,6 +175,17 @@ class MenuApp extends StatelessWidget {
               _launchURL('https://www.elcontraste.co', context);
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.bookmark, color: Colors.amber),
+            title: const Text('Favoritos'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FavoritesPage()),
+              );
+            },
+          ),
 
           const Divider(),
 
@@ -258,6 +271,19 @@ class MenuApp extends StatelessWidget {
                   onPressed: () {
                     context.read<NotificationsBloc>().requestPermission();
                   },
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.tune, color: Colors.grey),
+            title: const Text('Preferencias de notificaciones'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationPreferencesPage(),
                 ),
               );
             },
