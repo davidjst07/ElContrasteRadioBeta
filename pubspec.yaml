@@ -13,16 +13,21 @@ dependencies:
   equatable: ^2.0.7
   firebase_core: ^4.2.1
   firebase_messaging: ^16.0.4
+  firebase_remote_config: ^6.5.5
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1
-  flutter_dotenv: ^6.0.0
   flutter_html: ^3.0.0
   flutter_local_notifications: ^21.0.0
   font_awesome_flutter: ^10.12.0
+  get_it: ^8.0.3
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
   http: ^1.5.0
+  in_app_update: ^4.2.5
   just_audio: ^0.10.5
   provider: ^6.1.5+1
+  shimmer: ^3.0.0
   url_launcher: ^6.3.2
   youtube_player_flutter: ^9.1.2
 
@@ -42,6 +47,6 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    - .env
     - assets/
     - assets/icon/c_blanca.png
+    - assets/icon/jyd3.png
