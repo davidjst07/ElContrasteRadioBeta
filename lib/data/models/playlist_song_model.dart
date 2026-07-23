@@ -10,7 +10,8 @@ class PlaylistSong {
   });
 
   factory PlaylistSong.fromJson(dynamic json) {
-    final Map<String, dynamic> song = (json['song'] ?? {}) as Map<String, dynamic>;
+    final Map<String, dynamic> song =
+        (json['song'] ?? {}) as Map<String, dynamic>;
     return PlaylistSong(
       title: (song['title'] ?? song['text'] ?? 'Desconocido') as String,
       artist: (song['artist'] ?? '') as String,

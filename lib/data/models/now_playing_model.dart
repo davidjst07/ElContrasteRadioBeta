@@ -47,8 +47,8 @@ class NowPlaying {
     final String playlistName = (nowPlaying['playlist'] as String?) ?? 'AutoDJ';
     final int elapsed = (nowPlaying['elapsed'] as int?) ?? 0;
     final int duration = (nowPlaying['duration'] as int?) ?? 0;
-    final String? albumArt = (links?['art'] as String?) ??
-        (song['art'] as String?);
+    final String? albumArt =
+        (links?['art'] as String?) ?? (song['art'] as String?);
 
     final bool isLive = (json['live']?['is_live'] as bool?) ?? false;
     final String? streamerName = (json['live']?['streamer_name'] as String?);

@@ -25,6 +25,6 @@ body: $body,
 sentDate: $sentDate, 
 data: $data, 
 imageUrl: $imageUrl}
-'''; 
+''';
   }
 }

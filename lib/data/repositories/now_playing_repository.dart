@@ -7,12 +7,14 @@ import 'package:elcontrasteapp/data/models/now_playing_model.dart';
 import 'package:elcontrasteapp/data/models/playlist_song_model.dart';
 
 class AzuraCastService {
-  static const String streamUrl = 'https://radio.elcontraste.co/listen/el_contraste_radio/radio.mp3';
+  static const String streamUrl =
+      'https://radio.elcontraste.co/listen/el_contraste_radio/radio.mp3';
 }
 
 class NowPlayingRepository {
   // CORREGIDO: URL específica de la estación (shortcode)
-  static const String _baseUrl = 'https://radio.elcontraste.co/api/nowplaying/el_contraste_radio';
+  static const String _baseUrl =
+      'https://radio.elcontraste.co/api/nowplaying/el_contraste_radio';
 
   static Future<NowPlaying?> getNowPlaying() async {
     try {
@@ -30,7 +32,8 @@ class NowPlayingRepository {
         final dynamic json = jsonDecode(response.body);
 
         // Maneja tanto objeto directo como array
-        final Map<String, dynamic> stationData = (json is List && json.isNotEmpty)
+        final Map<String, dynamic> stationData =
+            (json is List && json.isNotEmpty)
             ? json.first as Map<String, dynamic>
             : json as Map<String, dynamic>;
 
@@ -60,12 +63,16 @@ class NowPlayingRepository {
       );
       if (response.statusCode == 200) {
         final dynamic json = jsonDecode(response.body);
-        final Map<String, dynamic> stationData = (json is List && json.isNotEmpty)
+        final Map<String, dynamic> stationData =
+            (json is List && json.isNotEmpty)
             ? json.first as Map<String, dynamic>
             : json as Map<String, dynamic>;
 
         final List<dynamic> history = stationData['song_history'] ?? [];
-        return history.take(5).map((song) => PlaylistSong.fromJson(song)).toList();
+        return history
+            .take(5)
+            .map((song) => PlaylistSong.fromJson(song))
+            .toList();
       }
       return [];
     } catch (e) {

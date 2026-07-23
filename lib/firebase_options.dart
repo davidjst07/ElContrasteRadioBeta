@@ -85,5 +85,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'elcontrastenoticias-f0ac1.firebasestorage.app',
     measurementId: 'G-QMEMH3PFWW',
   );
-
 }

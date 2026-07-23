@@ -17,7 +17,8 @@ class AppColors {
   static const lightAppbar = Color(0xFF0A2E50);
 }
 
-class ElContrasteThemeExtension extends ThemeExtension<ElContrasteThemeExtension> {
+class ElContrasteThemeExtension
+    extends ThemeExtension<ElContrasteThemeExtension> {
   final Color cardColor;
   final Color tabBarSelected;
   final Color placeholderColor;
@@ -50,13 +51,12 @@ class ElContrasteThemeExtension extends ThemeExtension<ElContrasteThemeExtension
     Color? tabBarSelected,
     Color? placeholderColor,
     Color? accentTextColor,
-  }) =>
-      ElContrasteThemeExtension(
-        cardColor: cardColor ?? this.cardColor,
-        tabBarSelected: tabBarSelected ?? this.tabBarSelected,
-        placeholderColor: placeholderColor ?? this.placeholderColor,
-        accentTextColor: accentTextColor ?? this.accentTextColor,
-      );
+  }) => ElContrasteThemeExtension(
+    cardColor: cardColor ?? this.cardColor,
+    tabBarSelected: tabBarSelected ?? this.tabBarSelected,
+    placeholderColor: placeholderColor ?? this.placeholderColor,
+    accentTextColor: accentTextColor ?? this.accentTextColor,
+  );
 
   @override
   ElContrasteThemeExtension lerp(
@@ -67,7 +67,11 @@ class ElContrasteThemeExtension extends ThemeExtension<ElContrasteThemeExtension
     return ElContrasteThemeExtension(
       cardColor: Color.lerp(cardColor, other.cardColor, t)!,
       tabBarSelected: Color.lerp(tabBarSelected, other.tabBarSelected, t)!,
-      placeholderColor: Color.lerp(placeholderColor, other.placeholderColor, t)!,
+      placeholderColor: Color.lerp(
+        placeholderColor,
+        other.placeholderColor,
+        t,
+      )!,
       accentTextColor: Color.lerp(accentTextColor, other.accentTextColor, t)!,
     );
   }
@@ -80,28 +84,28 @@ extension ElContrasteTheme on BuildContext {
 
 class AppTheme {
   static ThemeData get darkTheme => _buildTheme(
-        brightness: Brightness.dark,
-        scaffoldBg: AppColors.navyDeep,
-        surface: AppColors.navyCard,
-        primary: const Color.fromARGB(255, 34, 109, 163),
-        onPrimary: Colors.white,
-        onSurface: Colors.white,
-        onSurfaceVariant: Colors.white70,
-        appBarBg: AppColors.navyAppbar,
-        extension: ElContrasteThemeExtension.dark,
-      );
+    brightness: Brightness.dark,
+    scaffoldBg: AppColors.navyDeep,
+    surface: AppColors.navyCard,
+    primary: const Color.fromARGB(255, 34, 109, 163),
+    onPrimary: Colors.white,
+    onSurface: Colors.white,
+    onSurfaceVariant: Colors.white70,
+    appBarBg: AppColors.navyAppbar,
+    extension: ElContrasteThemeExtension.dark,
+  );
 
   static ThemeData get lightTheme => _buildTheme(
-        brightness: Brightness.light,
-        scaffoldBg: AppColors.lightBackground,
-        surface: AppColors.lightSurface,
-        primary: const Color.fromARGB(255, 32, 101, 151),
-        onPrimary: Colors.white,
-        onSurface: Colors.white,
-        onSurfaceVariant: Colors.white70,
-        appBarBg: AppColors.lightAppbar,
-        extension: ElContrasteThemeExtension.light,
-      );
+    brightness: Brightness.light,
+    scaffoldBg: AppColors.lightBackground,
+    surface: AppColors.lightSurface,
+    primary: const Color.fromARGB(255, 32, 101, 151),
+    onPrimary: Colors.white,
+    onSurface: Colors.white,
+    onSurfaceVariant: Colors.white70,
+    appBarBg: AppColors.lightAppbar,
+    extension: ElContrasteThemeExtension.light,
+  );
 
   static ThemeData _buildTheme({
     required Brightness brightness,
