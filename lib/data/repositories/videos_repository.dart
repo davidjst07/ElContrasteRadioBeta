@@ -2,32 +2,17 @@ import 'dart:convert';
 import 'package:elcontrasteapp/data/models/video_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class VideosRepository {
-  // 1. Instancia privada y estática (Singleton)
-  static final VideosRepository _instance = VideosRepository._internal();
-
-  // 2. Factory constructor que devuelve siempre la misma instancia
-  factory VideosRepository() {
-    return _instance;
-  }
-
-  // 3. Constructor privado interno
-  VideosRepository._internal();
-
-  // Leemos las claves de forma segura desde las variables de entorno
-  final String _apiKey = dotenv.env['YOUTUBE_API_KEY'] ?? 'NO_KEY';
-  final String _channelId = dotenv.env['YOUTUBE_CHANNEL_ID'] ?? 'NO_CHANNEL';
-
-  static const String _baseUrl = 'https://www.googleapis.com/youtube/v3/search';
+  // Proxy propio (Cloud Function) — la API key de YouTube vive en el
+  // servidor, nunca en el bundle de la app.
+  static const String _proxyUrl =
+      'https://us-central1-elcontrastenoticias-f0ac1.cloudfunctions.net/youtubeVideos';
 
   Future<List<Video>> fetchChannelVideos() async {
-    final url = Uri.parse(
-      '$_baseUrl?part=snippet&channelId=$_channelId&maxResults=20&order=date&type=video&key=$_apiKey',
-    );
+    final url = Uri.parse(_proxyUrl);
 
-    debugPrint('Haciendo petición a YouTube API: $url');
+    debugPrint('Haciendo petición al proxy de videos: $url');
 
     try {
       final response = await http.get(url);
@@ -39,26 +24,24 @@ class VideosRepository {
           return videoList.map((json) => Video.fromJson(json)).toList();
         } else {
           if (data['error'] != null) {
-            throw Exception(
-              'Error de la API de YouTube: ${data['error']['message']}',
-            );
+            throw Exception('Error del proxy de videos: ${data['error']}');
           }
           debugPrint(
-            'La API de YouTube no devolvió items, pero tampoco un error. Respuesta: ${response.body}',
+            'El proxy no devolvió items, pero tampoco un error. Respuesta: ${response.body}',
           );
           return [];
         }
       } else {
         debugPrint(
-          'Error en la respuesta de YouTube API. Código: ${response.statusCode}, Cuerpo: ${response.body}',
+          'Error en la respuesta del proxy. Código: ${response.statusCode}, Cuerpo: ${response.body}',
         );
         throw Exception(
           'Falló al cargar los videos (código: ${response.statusCode})',
         );
       }
     } catch (e) {
-      debugPrint('Excepción al llamar a YouTube API: $e');
-      throw Exception('Falló al conectar con el servidor de YouTube: $e');
+      debugPrint('Excepción al llamar al proxy de videos: $e');
+      throw Exception('Falló al conectar con el servidor de videos: $e');
     }
   }
 }

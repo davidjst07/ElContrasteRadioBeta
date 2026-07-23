@@ -1,4 +1,5 @@
 import 'package:elcontrasteapp/config/local_notifications/local_notifications.dart';
+import 'package:elcontrasteapp/core/di/service_locator.dart';
 import 'package:elcontrasteapp/core/themes/app_theme.dart';
 import 'package:elcontrasteapp/data/services/news_service.dart';
 import 'package:elcontrasteapp/domain/entities/push_message.dart';
@@ -7,23 +8,15 @@ import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:convert';
 
-import 'package:elcontrasteapp/presentation/audio/radio_player_handler.dart'; 
-import 'package:elcontrasteapp/presentation/pages/home/home_page.dart';
+import 'package:elcontrasteapp/presentation/audio/radio_player_handler.dart';
+import 'package:elcontrasteapp/presentation/pages/splash/splash_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-Future<void> _loadEnvironment() async {
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint('No se pudo cargar .env: $e');
-  }
-}
 
 Future<void> _initializeLocalNotifications() async {
   try {
@@ -74,7 +67,7 @@ Future<RadioPlayerHandler> _initializeAudioHandler() async {
 
 Future<void> _openNewsFromPostId(int postId) async {
   try {
-    final post = await NewsService().fetchPostById(postId);
+    final post = await getIt<NewsService>().fetchPostById(postId);
 
     await Future.delayed(const Duration(milliseconds: 300));
 
@@ -99,11 +92,13 @@ Future<void> _handleMessageNavigation(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  setupServiceLocator();
 
   await NotificationsBloc.initializeFCM();
   await _initializeLocalNotifications();
-  await _loadEnvironment();
 
   final audioHandler = await _initializeAudioHandler();
 
@@ -137,7 +132,7 @@ class RadioApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: const HomePage(),
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
       builder: (context, child) =>
           HandleNotificationsInteractions(child: child!),
