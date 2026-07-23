@@ -1,7 +1,7 @@
 name: elcontrasteapp
 description: "Proyecto Beta de la aplicación de El Contraste"
 publish_to: 'none'
-version: 3.1.0+31
+version: 3.2.0+32
 
 environment:
   sdk: ^3.9.0
