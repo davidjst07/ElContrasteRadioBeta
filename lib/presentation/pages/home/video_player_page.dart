@@ -3,8 +3,9 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final String videoId;
+  final String? title;
 
-  const VideoPlayerPage({super.key, required this.videoId});
+  const VideoPlayerPage({super.key, required this.videoId, this.title});
 
   @override
   State<VideoPlayerPage> createState() => _VideoPlayerPageState();
@@ -25,7 +26,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Reproductor de Video")),
+      appBar: AppBar(title: Text(widget.title ?? "Reproductor de Video")),
       body: Center(child: YoutubePlayer(controller: _controller)),
     );
   }

@@ -8,6 +8,7 @@ import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
 import 'package:elcontrasteapp/data/models/video_model.dart';
 import 'package:elcontrasteapp/presentation/pages/home/video_player_page.dart';
 import 'package:elcontrasteapp/data/repositories/videos_repository.dart';
+import 'package:elcontrasteapp/presentation/pages/reels/reels_page.dart';
 import 'package:elcontrasteapp/presentation/widgets/menu_app.dart';
 import 'package:elcontrasteapp/presentation/widgets/radio_player_widget.dart';
 import 'package:elcontrasteapp/presentation/widgets/shimmer_box.dart';
@@ -38,6 +39,7 @@ class _HomePageState extends State<HomePage> {
   int _selectedTabIndex = 0;
   final List<String> _tabs = ["Radio", "Noticias", "Videos"];
   int? _selectedNewsCategoryId;
+  Video? _liveVideo;
 
   late final List<Widget?> _tabWidgets;
 
@@ -47,6 +49,14 @@ class _HomePageState extends State<HomePage> {
     _tabWidgets = List<Widget?>.filled(_tabs.length, null);
     _tabWidgets[0] = const SimpleScheduleWidget();
     AppUpdateService.checkForUpdate();
+    _checkLiveStatus();
+  }
+
+  Future<void> _checkLiveStatus() async {
+    final video = await getIt<VideosRepository>().fetchLiveVideo();
+    if (mounted) {
+      setState(() => _liveVideo = video);
+    }
   }
 
   @override
@@ -65,18 +75,46 @@ class _HomePageState extends State<HomePage> {
               );
             },
           ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                ' EN VIVO ',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
+          if (_liveVideo != null)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoPlayerPage(
+                      videoId: _liveVideo!.id,
+                      title: 'En Vivo',
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.circle, color: Colors.white, size: 8),
+                    SizedBox(width: 6),
+                    Text(
+                      'EN VIVO',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -160,7 +198,7 @@ class _HomePageState extends State<HomePage> {
           categoryId: _selectedNewsCategoryId,
         );
       case 2:
-        return const _VideosWidget();
+        return const ReelsPage(showAppBar: false);
       default:
         return const SimpleScheduleWidget();
     }

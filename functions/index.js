@@ -55,3 +55,53 @@ exports.youtubeVideos = onRequest(
     }
   },
 );
+
+// Cache separado para el chequeo de "en vivo" — misma logica que arriba,
+// pero es una consulta distinta (eventType=live) asi que necesita su propio
+// cache en memoria.
+let cachedLiveBody = null;
+let cachedLiveAt = 0;
+
+exports.youtubeLiveStatus = onRequest(
+  {secrets: [youtubeApiKey], cors: true, maxInstances: 5},
+  async (request, response) => {
+    try {
+      const now = Date.now();
+      if (cachedLiveBody && now - cachedLiveAt < CACHE_TTL_MS) {
+        response.status(200).json(cachedLiveBody);
+        return;
+      }
+
+      const url = new URL("https://www.googleapis.com/youtube/v3/search");
+      url.searchParams.set("part", "snippet");
+      url.searchParams.set("channelId", CHANNEL_ID);
+      url.searchParams.set("eventType", "live");
+      url.searchParams.set("type", "video");
+      url.searchParams.set("key", youtubeApiKey.value());
+
+      const ytResponse = await fetch(url.toString());
+      const data = await ytResponse.json();
+
+      if (!ytResponse.ok) {
+        logger.error("Error de la API de YouTube (live status)", data);
+        response.status(ytResponse.status).json({
+          error: "No se pudo obtener el estado en vivo de YouTube",
+        });
+        return;
+      }
+
+      const items = data.items || [];
+      const body = items.length > 0
+        ? {live: true, video: items[0]}
+        : {live: false};
+
+      cachedLiveBody = body;
+      cachedLiveAt = now;
+
+      response.status(200).json(body);
+    } catch (error) {
+      logger.error("Error inesperado en youtubeLiveStatus", error);
+      response.status(500).json({error: "Error interno del servidor"});
+    }
+  },
+);
