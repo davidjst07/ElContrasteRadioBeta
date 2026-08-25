@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:elcontrasteapp/presentation/pages/home/home_page.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  /// Se llama justo después de reemplazar el splash por HomePage.
+  /// Usado por main.dart para coordinar deep links/notificaciones que
+  /// podrían estar esperando a que el splash termine (ver _splashDone).
+  final VoidCallback? onNavigatedToHome;
+
+  const SplashScreen({super.key, this.onNavigatedToHome});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -40,6 +45,7 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
+    widget.onNavigatedToHome?.call();
   }
 
   @override

@@ -37,7 +37,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedTabIndex = 0;
-  final List<String> _tabs = ["Radio", "Noticias", "Videos"];
+  final List<String> _tabs = ["Radio", "Noticias", "Reels"];
   int? _selectedNewsCategoryId;
   Video? _liveVideo;
 
@@ -119,9 +119,49 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       drawer: const MenuApp(),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
+      body: GestureDetector(
+        // Swipe izquierda-derecha: cambiar pestañas
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity == null) return;
+
+          // Swipe derecha (positivo) → Tab anterior
+          if (details.primaryVelocity! > 0) {
+            if (_selectedTabIndex > 0) {
+              final newIndex = _selectedTabIndex - 1;
+              // Si es Reels, abre fullscreen
+              if (newIndex == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ReelsPage(showAppBar: true),
+                  ),
+                );
+              } else {
+                setState(() => _selectedTabIndex = newIndex);
+              }
+            }
+          }
+          // Swipe izquierda (negativo) → Tab siguiente
+          else if (details.primaryVelocity! < 0) {
+            if (_selectedTabIndex < _tabs.length - 1) {
+              final newIndex = _selectedTabIndex + 1;
+              // Si es Reels, abre fullscreen
+              if (newIndex == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ReelsPage(showAppBar: true),
+                  ),
+                );
+              } else {
+                setState(() => _selectedTabIndex = newIndex);
+              }
+            }
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
           children: [
             Image.asset('assets/logoradio.png', height: 80),
             const SizedBox(height: 16),
@@ -139,9 +179,19 @@ class _HomePageState extends State<HomePage> {
                   text: text,
                   selected: _selectedTabIndex == index,
                   onTap: () {
-                    setState(() {
-                      _selectedTabIndex = index;
-                    });
+                    // Si toca "Reels" (index 2), abre ReelsPage fullscreen
+                    if (index == 2) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ReelsPage(showAppBar: true),
+                        ),
+                      );
+                    } else {
+                      setState(() {
+                        _selectedTabIndex = index;
+                      });
+                    }
                   },
                 );
               }).toList(),
@@ -169,6 +219,7 @@ class _HomePageState extends State<HomePage> {
             ),
             Expanded(child: _buildTabContent()),
           ],
+        ),
         ),
       ),
     );

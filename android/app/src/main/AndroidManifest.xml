@@ -9,9 +9,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
-        android:label="elcontrasteapp"
-        android:icon="@mipmap/launcher_icon"
-        android:usesCleartextTraffic="true">
+        android:label="El Contraste Noticias"
+        android:icon="@mipmap/launcher_icon">
 
         <activity
             android:showWhenLocked="true"
@@ -29,6 +28,14 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- Deep link para abrir un reel específico: elcontraste://reel/{id} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="elcontraste" android:host="reel" />
             </intent-filter>
         </activity>
 

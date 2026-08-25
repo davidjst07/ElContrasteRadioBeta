@@ -68,6 +68,11 @@ class LocalNotifications {
       channelDescription: 'channel_description',
       importance: Importance.max,
       priority: Priority.high,
+      // Ícono grande a color (el logo completo), visible dentro de la
+      // notificación en la bandeja. El ícono pequeño de la barra de
+      // estado ('ic_notification', configurado en initialize()) es
+      // aparte y Android lo fuerza a blanco/transparente sin excepción.
+      largeIcon: DrawableResourceAndroidBitmap('launcher_icon'),
     );
 
     const notificationDetails = NotificationDetails(android: androidDetails);

@@ -3,9 +3,11 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links
   firebase_core
   firebase_remote_config
   flutter_inappwebview_windows
+  share_plus
   url_launcher_windows
 )
 

@@ -9,8 +9,8 @@ class ReelsCubit extends Cubit<ReelsState> {
   final ReelsService _reelsService;
 
   ReelsCubit({ReelsService? reelsService})
-      : _reelsService = reelsService ?? GetIt.I<ReelsService>(),
-        super(ReelsState.initial());
+    : _reelsService = reelsService ?? GetIt.I<ReelsService>(),
+      super(ReelsState.initial());
 
   /// Pide la primera página de reels (sin cursor)
   Future<void> fetchInitial() async {
@@ -27,6 +27,7 @@ class ReelsCubit extends Cubit<ReelsState> {
           status: ReelsStatus.success,
           reels: result.reels,
           nextCursor: result.nextCursor,
+          clearNextCursor: result.nextCursor == null,
           loadingMore: false,
           errorMessage: null,
         ),
@@ -60,12 +61,28 @@ class ReelsCubit extends Cubit<ReelsState> {
         cursor: state.nextCursor,
       );
 
+      // Filtramos por id cualquier reel que ya tengamos en la lista.
+      // (Defensa ante un cursor que devuelva reels repetidos: por ejemplo
+      // si varios reels comparten el mismo timestamp de "creado_en" y el
+      // backend usa ese timestamp como cursor, puede reenviar los mismos
+      // últimos reels una y otra vez)
+      final existingIds = state.reels.map((r) => r.id).toSet();
+      final newReels = result.reels
+          .where((r) => !existingIds.contains(r.id))
+          .toList();
+
+      // Si tras filtrar duplicados no llegó ningún reel nuevo, tratamos
+      // esto como el fin real del feed (aunque el backend haya mandado
+      // un nextCursor), para no quedar pidiendo en bucle lo mismo.
+      final reachedEnd = newReels.isEmpty;
+
       // Éxito: agregamos los NUEVOS reels a la lista existente
       emit(
         state.copyWith(
           status: ReelsStatus.success,
-          reels: [...state.reels, ...result.reels], // Append, no reemplazo
+          reels: [...state.reels, ...newReels], // Append, no reemplazo
           nextCursor: result.nextCursor,
+          clearNextCursor: reachedEnd || result.nextCursor == null,
           loadingMore: false,
           errorMessage: null,
         ),

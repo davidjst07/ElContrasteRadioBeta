@@ -5,6 +5,9 @@ class Reel {
   final String titulo;
   final int duracionSeg;
   final DateTime creadoEn;
+  // Contador de likes del servidor. Default 0: el backend puede no
+  // mandar este campo todavía (endpoint de likes pendiente de desplegar).
+  final int likesCount;
 
   Reel({
     required this.id,
@@ -13,6 +16,7 @@ class Reel {
     required this.titulo,
     required this.duracionSeg,
     required this.creadoEn,
+    this.likesCount = 0,
   });
 
   // Constructor para parsear desde el JSON del endpoint (usa snake_case)
@@ -24,6 +28,7 @@ class Reel {
       titulo: json['titulo'] as String,
       duracionSeg: json['duracion_seg'] as int,
       creadoEn: DateTime.parse(json['creado_en'] as String),
+      likesCount: json['likes_count'] as int? ?? 0,
     );
   }
 }

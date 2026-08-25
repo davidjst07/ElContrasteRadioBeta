@@ -101,7 +101,12 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
 
     try {
       final token = await messaging.getToken();
-      debugPrint('FCM Token: $token');
+      // Solo se imprime en desarrollo (para copiarlo y probar pushes desde
+      // la consola de Firebase). El token identifica este dispositivo
+      // específico — no debe quedar visible en logcat de producción.
+      if (kDebugMode) {
+        debugPrint('FCM Token: $token');
+      }
     } catch (e) {
       debugPrint('Error obteniendo token FCM: $e');
     }

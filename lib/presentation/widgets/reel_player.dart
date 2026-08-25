@@ -13,15 +13,25 @@ class ReelPlayerWidget extends StatefulWidget {
   /// El widget usa esto para inicializar/pausar el video
   final bool isActive;
 
+  /// True si este reel es el SIGUIENTE (un índice adelante)
+  /// Sirve para precargarlo mientras ves el actual
+  /// El video se inicializa pero NO se reproduce
+  final bool shouldPreload;
+
   /// Callback que se ejecuta cuando el video termina
   /// Útil para pasar automáticamente al siguiente reel
   final VoidCallback? onVideoEnded;
+
+  /// Callback al hacer doble-tap sobre el video (estilo like de TikTok/IG)
+  final VoidCallback? onDoubleTap;
 
   const ReelPlayerWidget({
     super.key,
     required this.reel,
     required this.isActive,
+    this.shouldPreload = false,
     this.onVideoEnded,
+    this.onDoubleTap,
   });
 
   @override
@@ -29,10 +39,18 @@ class ReelPlayerWidget extends StatefulWidget {
 }
 
 class _ReelPlayerWidgetState extends State<ReelPlayerWidget> {
+  // Volumen compartido entre TODOS los reels durante la sesión de la app.
+  // Si el usuario sube/baja el volumen o lo mutea en un reel, ese mismo nivel
+  // se aplica al siguiente reel en vez de reiniciar siempre a 50%.
+  static double _sharedVolume = 0.5;
+
   late VideoPlayerController _videoController;
   ChewieController? _chewieController;
   bool _isInitialized = false;
   VoidCallback? _videoListener;
+  double _lastTrackedVolume = _sharedVolume; // Para detectar cambios de volumen
+  DateTime?
+  _lastTapTime; // Para detectar doble-tap manualmente (ver _handlePointerDown)
 
   @override
   void initState() {
@@ -47,34 +65,32 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget> {
       Uri.parse(widget.reel.urlHls),
     );
 
-    _videoController.initialize().then((_) {
-      if (mounted) {
-        setState(() => _isInitialized = true);
-        // Si ya está activo cuando termina de inicializar, reproduce
-        if (widget.isActive) {
-          _play();
-        }
-      }
-    }).catchError((e) {
-      debugPrint('Error inicializando video del reel ${widget.reel.id}: $e');
-    });
+    _videoController
+        .initialize()
+        .then((_) {
+          if (mounted) {
+            setState(() => _isInitialized = true);
+            // Si ya está activo cuando termina de inicializar, reproduce
+            if (widget.isActive) {
+              _play();
+            }
+          }
+        })
+        .catchError((e) {
+          debugPrint(
+            'Error inicializando video del reel ${widget.reel.id}: $e',
+          );
+        });
   }
 
-  /// Inicia la reproducción + crea ChewieController si no existe
-  void _play() {
-    if (!_isInitialized) return;
+  /// Crea ChewieController (sin reproducir)
+  /// Se llama durante precarga o cuando se activa el reel
+  void _createChewieIfNeeded() {
+    if (!_isInitialized || _chewieController != null) return;
 
-    // Si Chewie ya existe, solo reproduce
-    if (_chewieController != null) {
-      _videoController.play();
-      _addVideoListener();
-      return;
-    }
-
-    // Crear ChewieController la primera vez
     _chewieController = ChewieController(
       videoPlayerController: _videoController,
-      autoPlay: true,
+      autoPlay: false, // No reproducir automáticamente
       looping: false,
       showControls: true,
       materialProgressColors: ChewieProgressColors(
@@ -84,16 +100,28 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget> {
         bufferedColor: Colors.grey[300]!,
       ),
       showOptions: false,
+      allowPlaybackSpeedChanging: false,
+      allowMuting: true,
     );
 
-    // Volumen normal - el usuario puede mutearlo con el botón de Chewie
-    // (No forzamos setVolume(0) porque bloquea el control del usuario)
-    _videoController.setVolume(0.5); // 50% de volumen
+    // Aplica el último volumen usado (compartido entre reels)
+    _videoController.setVolume(_sharedVolume);
 
-    // Agregar listener para detectar cuando termina el video
+    setState(
+      () {},
+    ); // Reconstruye para mostrar Chewie (aunque aún no reproduce)
+  }
+
+  /// Inicia la reproducción + crea ChewieController si no existe
+  void _play() {
+    if (!_isInitialized) return;
+
+    // Crear Chewie si no existe
+    _createChewieIfNeeded();
+
+    // Reproducir
+    _videoController.play();
     _addVideoListener();
-
-    setState(() {}); // Reconstruye para mostrar Chewie
   }
 
   /// Agrega listener que detecta cuando el video termina
@@ -116,6 +144,14 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget> {
         // Pasa al siguiente reel
         _goToNextReel();
       }
+
+      // Si el usuario cambió el volumen (con el control de Chewie),
+      // lo guardamos como el volumen compartido para el próximo reel
+      final currentVolume = _videoController.value.volume;
+      if (currentVolume != _lastTrackedVolume) {
+        _lastTrackedVolume = currentVolume;
+        _sharedVolume = currentVolume;
+      }
     };
 
     _videoController.addListener(_videoListener!);
@@ -131,6 +167,29 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget> {
   void _pause() {
     if (_isInitialized && _videoController.value.isPlaying) {
       _videoController.pause();
+    }
+  }
+
+  /// Detecta doble-tap manualmente comparando el tiempo entre toques.
+  ///
+  /// No usamos GestureDetector.onDoubleTap aquí a propósito: un
+  /// GestureDetector con onTap/onDoubleTap ENTRA en la arena de gestos y,
+  /// si gana, se queda con el toque — bloqueando el tap-para-pausar/
+  /// mostrar-controles NATIVO de Chewie que vive debajo en el Stack (por
+  /// eso antes, al ocultarse la barra de progreso, ya no había forma de
+  /// volver a mostrarla: nuestro detector se quedaba con cada toque).
+  ///
+  /// Listener, en cambio, solo OBSERVA punteros sin competir por la
+  /// arena, así que Chewie sigue recibiendo y procesando cada tap con
+  /// total normalidad debajo nuestro.
+  void _handlePointerDown(PointerDownEvent event) {
+    final now = DateTime.now();
+    if (_lastTapTime != null &&
+        now.difference(_lastTapTime!) < const Duration(milliseconds: 300)) {
+      widget.onDoubleTap?.call();
+      _lastTapTime = null; // evita que un tercer toque rápido re-dispare
+    } else {
+      _lastTapTime = now;
     }
   }
 
@@ -152,6 +211,17 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget> {
     // Si isActive cambió de true a false: pausa
     else if (oldWidget.isActive && !widget.isActive) {
       _pause();
+    }
+
+    // Si shouldPreload cambió a true (este es el siguiente reel):
+    // inicializa el video Y crea el ChewieController (pero no reproduce)
+    if (!oldWidget.shouldPreload && widget.shouldPreload) {
+      if (!_isInitialized) {
+        _initializeVideo();
+      } else {
+        // Ya está inicializado, solo crear Chewie
+        _createChewieIfNeeded();
+      }
     }
   }
 
@@ -184,9 +254,7 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget> {
             imageUrl: widget.reel.thumbnailUrl,
             fit: BoxFit.cover,
           ),
-          const Center(
-            child: CircularProgressIndicator(),
-          ),
+          const Center(child: CircularProgressIndicator()),
         ],
       );
     }
@@ -220,7 +288,22 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget> {
       );
     }
 
-    // Reproduciendo con Chewie
-    return Chewie(controller: _chewieController!);
+    // Reproduciendo con Chewie. Chewie YA trae su propio comportamiento
+    // nativo de tap: pausa/reproduce Y muestra/oculta su barra de
+    // controles — no lo reimplementamos. Solo superponemos un Listener
+    // (no un GestureDetector) que observa los toques para detectar
+    // doble-tap (like) SIN competir por el gesto ni bloquear a Chewie.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Chewie(controller: _chewieController!),
+        Positioned.fill(
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: _handlePointerDown,
+          ),
+        ),
+      ],
+    );
   }
 }

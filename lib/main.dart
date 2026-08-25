@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:elcontrasteapp/config/local_notifications/local_notifications.dart';
 import 'package:elcontrasteapp/core/di/service_locator.dart';
 import 'package:elcontrasteapp/core/themes/app_theme.dart';
 import 'package:elcontrasteapp/data/services/news_service.dart';
+import 'package:elcontrasteapp/data/services/reels_service.dart';
 import 'package:elcontrasteapp/domain/entities/push_message.dart';
 import 'package:elcontrasteapp/presentation/blocs/notifications/notifications_bloc.dart';
 import 'package:elcontrasteapp/presentation/pages/home/news_detail_page.dart';
+import 'package:elcontrasteapp/presentation/pages/reels/single_reel_page.dart';
+import 'package:app_links/app_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,6 +22,26 @@ import 'package:elcontrasteapp/presentation/audio/radio_player_handler.dart';
 import 'package:elcontrasteapp/presentation/pages/splash/splash_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+/// Se completa cuando el splash reemplaza su pantalla por HomePage.
+///
+/// Los flujos que navegan "desde afuera" (deep link, notificación) deben
+/// esperar esto ANTES de empujar su propia pantalla. Sin esto hay una
+/// carrera real: si el deep link resuelve rápido, empuja su pantalla
+/// ENCIMA del splash, y cuando el temporizador del splash dispara su
+/// pushReplacement(HomePage) — que reemplaza lo que esté ARRIBA del
+/// stack en ese momento, no específicamente el splash — termina
+/// reemplazando la pantalla del deep link por Home, perdiéndola.
+/// Esperar a que el splash termine (con un tope de seguridad) garantiza
+/// el orden final del stack sin importar cuál operación async gane.
+final Completer<void> _splashDone = Completer<void>();
+
+Future<void> _waitForSplash() {
+  return _splashDone.future.timeout(
+    const Duration(seconds: 3),
+    onTimeout: () {},
+  );
+}
 
 Future<void> _initializeLocalNotifications() async {
   try {
@@ -69,6 +94,9 @@ Future<void> _openNewsFromPostId(int postId) async {
   try {
     final post = await getIt<NewsService>().fetchPostById(postId);
 
+    // Espera a que el splash ya haya reemplazado su pantalla por Home
+    // (ver _splashDone) antes de empujar la noticia encima.
+    await _waitForSplash();
     await Future.delayed(const Duration(milliseconds: 300));
 
     navigatorKey.currentState?.push(
@@ -77,6 +105,53 @@ Future<void> _openNewsFromPostId(int postId) async {
   } catch (e) {
     debugPrint('Error cargando noticia: $e');
   }
+}
+
+/// Abre un reel específico a partir de su [reelId].
+/// Se usa desde el deep link elcontraste://reel/{id} (ver [_setupDeepLinks])
+/// y podría reutilizarse desde una notificación push de tipo "reel".
+Future<void> _openReelFromId(String reelId) async {
+  try {
+    final reel = await getIt<ReelsService>().fetchReelById(reelId);
+
+    // Espera a que el splash ya haya reemplazado su pantalla por Home
+    // (ver _splashDone) antes de empujar el reel encima.
+    await _waitForSplash();
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(builder: (_) => SingleReelPage(reel: reel)),
+    );
+  } catch (e) {
+    debugPrint('Error cargando reel desde deep link: $e');
+  }
+}
+
+/// Escucha los deep links entrantes con esquema elcontraste://reel/{id}
+/// tanto si la app se abre DESDE el link (getInitialLink) como si ya
+/// está corriendo y el link llega mientras tanto (uriLinkStream).
+void _setupDeepLinks() {
+  final appLinks = AppLinks();
+
+  void handleUri(Uri uri) {
+    debugPrint('Deep link recibido: $uri');
+
+    // Esperamos elcontraste://reel/{id} → host = "reel", primer segmento = id
+    if (uri.scheme == 'elcontraste' && uri.host == 'reel') {
+      final id = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+      if (id != null && id.isNotEmpty) {
+        _openReelFromId(id);
+      }
+    }
+  }
+
+  // Link con el que se abrió la app (app cerrada)
+  appLinks.getInitialLink().then((uri) {
+    if (uri != null) handleUri(uri);
+  });
+
+  // Links que llegan mientras la app ya está abierta
+  appLinks.uriLinkStream.listen(handleUri);
 }
 
 Future<void> _handleMessageNavigation(RemoteMessage message) async {
@@ -132,7 +207,11 @@ class RadioApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: const SplashScreen(),
+      home: SplashScreen(
+        onNavigatedToHome: () {
+          if (!_splashDone.isCompleted) _splashDone.complete();
+        },
+      ),
       debugShowCheckedModeBanner: false,
       builder: (context, child) =>
           HandleNotificationsInteractions(child: child!),
@@ -158,6 +237,7 @@ class _HandleNotificationsInteractionsState
   void initState() {
     super.initState();
     _setupInteractedMessage();
+    _setupDeepLinks();
   }
 
   Future<void> _setupInteractedMessage() async {
